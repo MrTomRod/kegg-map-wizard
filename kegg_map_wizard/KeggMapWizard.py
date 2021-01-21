@@ -22,22 +22,6 @@ def load_template(name: str) -> Template:
         return Template(template)
 
 
-"""
-
-
-
-
-
-improvement:
-
-download only configs of maps that were found.
-
-
-
-
-"""
-
-
 class KeggMapWizard:
     MAP_TEMPLATE = load_template('map')
     LINE_TEMPLATE = load_template('line')
@@ -120,7 +104,8 @@ class KeggMapWizard:
 
     def download_maps(self, map_ids: [str], reload=False, nonexistent_file=True) -> None:
         self.__download_map_pngs(map_ids, reload=reload)
-        self.__download_map_confs(map_ids, reload=reload, nonexistent_file=nonexistent_file)
+        found_maps = [map.rstrip('.png') for map in os.listdir(F'{DATA_DIR}/maps_png') if map.endswith('.png')]
+        self.__download_map_confs(found_maps, reload=reload, nonexistent_file=nonexistent_file)
 
     def __download_map_pngs(self, map_ids: [str], reload: bool = False) -> None:
         to_download = []

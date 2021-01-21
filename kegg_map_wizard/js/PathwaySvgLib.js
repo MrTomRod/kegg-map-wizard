@@ -10,14 +10,14 @@
  *      - 'strains'
  *      - 'manual-number
  *
- * Restores fill to transparent.
+ * Restores fill/stroke to transparent.
  *
  * @param svg {Object} target svg element
  */
 function resetMap(svg) {
     $(svg).find(".shape").each(function (i, shape) {
-        // make fill transparent
-        shape.setAttribute('fill', 'transparent')
+        // make fill/stroke transparent
+        colorShape(shape, 'transparent')
         // empty strains from shape
         $(shape).removeData('strains')
         $(shape).removeData('manual-number')
@@ -50,12 +50,12 @@ function highlightBinary(
 ) {
     resetMap(svg)
 
-    $(".shape").each(function (index) {
+    $(".shape").each(function () {
         let annotations = $(this).data('annotations')
         if (getCoveredAnnotations(annotations_to_highlight, annotations).length) {
-            this.setAttribute('fill', color)
+            colorShape(this, color)
         } else {
-            this.setAttribute('fill', 'transparent')
+            colorShape(this, 'transparent')
         }
     })
 }
@@ -75,7 +75,7 @@ function highlightBinary(
  *   - 'strains' to annotations in 'data-annotations':
  *        { name: "K01223", …, strains: [ "Strain1", … ] }
  *
- * Changes fill to a color.
+ * Changes fill/stroke to a color.
  *
  * This data can be removed using resetMap()
  */
@@ -89,7 +89,7 @@ function highlightStrains(
     let strainNames = Object.keys(strains)
     let colorArray = ['transparent'].concat(chroma.scale(colors).mode('lch').colors(strainNames.length))
 
-    function colorShape(shape) {
+    function singleColorShape(shape) {
         let annotations = $(shape).data('annotations')
         let coveringStrains = new Set()
         let notCoveringStrains = new Set()
@@ -118,11 +118,11 @@ function highlightStrains(
         $(shape).data('annotations', annotations)
 
         // color shape
-        shape.setAttribute('fill', colorArray[coveringStrains.size])
+        colorShape(shape, colorArray[coveringStrains.size])
     }
 
     $(".shape").each(function (index) {
-        colorShape(this)
+        singleColorShape(this)
     })
 }
 
@@ -142,7 +142,7 @@ function highlightStrains(
  *        { name: "K01223", …, strains: [ "Strain1", … ] }
  *   - LinearGradient defs to SVG
  *
- * Changes fill to a LinearGradient.
+ * Changes fill/stroke to a LinearGradient.
  *
  * This data can be removed using resetMap()
  */
@@ -205,12 +205,12 @@ function highlightGroupsOfStrains(
 
         // color shape
         if (nGroups === 1) {
-            shape.setAttribute('fill', Object.values(groupColors)[0])
+            colorShape(shape, Object.values(groupColors)[0])
         } else {
-            let gradient = createGradient(groupColors, nGroups)
+            let gradient = createGradient(groupColors, nGroups, shape)
             gradient.id = 'gradient-shape-' + shapeIndex
             defs.appendChild(gradient);
-            shape.setAttribute('fill', `url(#gradient-shape-${shapeIndex})`)
+            colorShape(shape, `url(#gradient-shape-${shapeIndex})`)
         }
     }
 
@@ -221,7 +221,15 @@ function highlightGroupsOfStrains(
     svg.appendChild(defs);
 }
 
-function createGradient(groupColors, nGroups) {
+/**
+ * Create a SVG linear gradient
+ *
+ * @param  {Array}  groupColors A list of colors, one per group
+ * @param  {number} nGroups The number of groups
+ * @param  {Object} targetElement The element the gradient will be applied to
+ * @return {Object} gradient An SVG gradient element
+ */
+function createGradient(groupColors, nGroups, targetElement) {
     let gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     const protoStops = Array(nGroups + 1).fill().map((_, index) => index / nGroups * 100 + '%')
     let stops = []
@@ -233,15 +241,18 @@ function createGradient(groupColors, nGroups) {
 
     // Create stop elements
     for (var i = 0, length = stops.length; i < length; i++) {
-        let stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        let stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
         stop.setAttribute('offset', stops[i].offset);
         stop.setAttribute('stop-color', stops[i].color);
         gradient.appendChild(stop);
-
     }
 
     // set gradient direction
-    gradient.setAttribute('x2', '1');
+    // gradient.setAttribute('x2', '1') // ->  does not work for elements with width or height = 0, wtf?!
+    const bbox = targetElement.getBBox()
+    gradient.setAttribute('gradientUnits', 'userSpaceOnUse')
+    gradient.setAttribute('x1', bbox['x'])
+    gradient.setAttribute('x2', bbox['x'] + bbox['width'])
 
     return gradient
 }
@@ -296,12 +307,27 @@ function highlightContinuous(
         $(shape).data('annotations', annotations)
 
         // color shape
-        shape.setAttribute('fill', chroma.mix(colors[0], colors[1], manualNumber))
+        colorShape(shape, chroma.mix(colors[0], colors[1], manualNumber))
     }
 
     $(".shape").each(function (index) {
         manualShape(this)
     })
+}
+
+/**
+ * Changes the fill or stroke attribute of a shape.
+ *
+ * The value is set to the attribute specified by 'data-apply-color-to'.
+ * If 'data-apply-color-to' is not set, the 'fill' attribute will be changed.
+ *
+ * @param  {Object} shape Shape svg element
+ * @param  {string} attributeValue color or url to definition, e.g. 'red' or 'url(#gradient-shape-0)'
+ */
+function colorShape(shape, attributeValue) {
+    let targetAttribute = $(shape).data('apply-color-to')
+    targetAttribute = targetAttribute === undefined ? 'fill' : targetAttribute
+    shape.setAttribute(targetAttribute, attributeValue)
 }
 
 /**

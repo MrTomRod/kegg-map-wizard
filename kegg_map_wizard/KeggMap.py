@@ -13,6 +13,8 @@ if DATA_DIR is None:
 
 
 class KeggMap:
+    _shapes = None
+
     def __init__(self, kegg_map_wizard, map_id: str):
         self.kegg_map_wizard = kegg_map_wizard
         self.map_id = map_id
@@ -30,8 +32,12 @@ class KeggMap:
     def __repr__(self):
         return f'<KeggMap {self.kegg_map_wizard.org}{self.map_id}: {self.title}>'
 
-    @cached_property
     def shapes(self) -> [KeggShape]:
+        if self._shapes is None:
+            self.__load_shapes()
+        return self._shapes
+
+    def __load_shapes(self):
         with open(self._config_path) as f:
             config_file = f.readlines()
 
@@ -44,23 +50,23 @@ class KeggMap:
         for s in shapes:
             assert type(s) in [Circle, Rect, Line, Poly]
 
-        return shapes
+        self._shapes = shapes
 
     @property
     def circles(self) -> [Circle]:
-        return [s for s in self.shapes if type(s) is Circle]
+        return [s for s in self.shapes() if type(s) is Circle]
 
     @property
     def lines(self) -> [Line]:
-        return [s for s in self.shapes if type(s) is Line]
+        return [s for s in self.shapes() if type(s) is Line]
 
     @property
     def rects(self) -> [Rect]:
-        return [s for s in self.shapes if type(s) is Rect]
+        return [s for s in self.shapes() if type(s) is Rect]
 
     @property
     def polys(self) -> [Poly]:
-        return [s for s in self.shapes if type(s) is Poly]
+        return [s for s in self.shapes() if type(s) is Poly]
 
     @property
     def png(self) -> str:

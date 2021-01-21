@@ -25,8 +25,8 @@ class TestKeggMapWizard(TestCase):
     def test_download_rest_files(self):
         self.kmw.download_rest_data(reload=False)
 
-    def test_reload_map(self):
-        self.kmw.download_map('00400', reload=True)
+    # def test_reload_map(self):
+    #     self.kmw.download_map('00400', reload=True)
 
     def test_get_map(self):
         self.kmw.get_map('00400')
@@ -47,13 +47,13 @@ class TestKeggMapWizard(TestCase):
 
     def test_map_shapes(self):
         for m in self.kmw.maps():
-            kss = m.shapes
+            kss = m.shapes()
             for ks in kss:
                 pass
 
     def test_map_anno(self):
         m = self.kmw.get_map(map_id='01058')
-        kss = m.shapes
+        kss = m.shapes()
         for ks in kss:
             for anno in ks.annotations:
                 print(anno, anno.description)
@@ -63,7 +63,7 @@ class TestKeggMapWizard(TestCase):
     def test_map_annos(self):
         for m in self.kmw.maps():
             print(m)
-            kss = m.shapes
+            kss = m.shapes()
             for ks in kss:
                 for anno in ks.annotations:
                     x = anno.description
@@ -80,7 +80,7 @@ class TestKeggMapWizard(TestCase):
         map.save(out_path=f'{PACKAGE_ROOT}/tests/out/{self.kmw.org}{map_id}.svg')
 
     def test_render_key_maps(self):
-        map_ids = ['00400', '01240', '01110', '04723', '04930']
+        map_ids = ['00400', '00601', '01110', '01240', '04723', '04930']
 
         self.kmw.color_function = color_function_test
 
@@ -92,7 +92,7 @@ class TestKeggMapWizard(TestCase):
         for map in self.kmw.maps():
             print(map)
             svg = map.svg()
-            map.save(out_path=f'{PACKAGE_ROOT}/tests/out/ko-transparent/KEGG {self.kmw.org}{map.map_id}.svg')
+            map.save(out_path=f'{PACKAGE_ROOT}/tests/out/transparent-{self.kmw.org}{map.map_id}.svg')
 
     def test_render_all_maps_ko(self):
         self.kmw.color_function = color_function_test

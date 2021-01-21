@@ -3,7 +3,6 @@ import re
 import json
 
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
-from kegg_map_wizard.kegg_utils import outline_db, outline_stroke
 
 ROOT = os.path.dirname(__file__)
 
@@ -12,12 +11,12 @@ class KeggShape:
     type: str
     re_geometry: re.Pattern
 
-    def __init__(self, kegg_map, type, geometry, url, description, raw):
+    def __init__(self, kegg_map, type, geometry, url, description, raw_position):
         self.kegg_map = kegg_map
         self.type = type  # 'rect', 'poly' or 'circle'
         self.url = url
         self.description = description
-        self.raw = raw
+        self.raw_position = raw_position
 
         assert self.re_geometry.match(geometry) is not None, \
             f'Error in {self}: geometry {repr(geometry)} does not match regex!'
@@ -65,17 +64,17 @@ class KeggShape:
     @staticmethod
     def generate(kegg_map, line: str):  # -> KeggShape
         try:
-            tmp, url, description = [l for l in line.rstrip().split('\t')]
-            shape_type, geometry = tmp.split(' ', maxsplit=1)
+            raw_position, url, description = [l for l in line.rstrip().split('\t')]
+            shape_type, geometry = raw_position.split(' ', maxsplit=1)
 
             if shape_type in ['circle', 'filled_circ', 'circ']:
-                return Circle(kegg_map, shape_type, geometry, url, description, line)
+                return Circle(kegg_map, shape_type, geometry, url, description, raw_position)
             elif shape_type == 'rect':
-                return Rect(kegg_map, shape_type, geometry, url, description, line)
+                return Rect(kegg_map, shape_type, geometry, url, description, raw_position)
             elif shape_type == 'poly':
-                return Poly(kegg_map, shape_type, geometry, url, description, line)
+                return Poly(kegg_map, shape_type, geometry, url, description, raw_position)
             elif shape_type == 'line':
-                return Line(kegg_map, shape_type, geometry, url, description, line)
+                return Line(kegg_map, shape_type, geometry, url, description, raw_position)
             else:
                 raise AssertionError(f'Line does not match any type: {shape_type}')
 
@@ -101,7 +100,7 @@ class Poly(KeggShape):
         for c in coords:
             assert c.isdigit(), f'Error in {self}: geometry contains non-integer! {geometry}'
         assert len(coords) % 2 == 0, f'number of polygon coordinates must be odd! {geometry} -> {coords}'
-        return f'points="{",".join([str(c) for c in coords])}"'
+        return ",".join([str(c) for c in coords])
 
 
 class Circle(KeggShape):
@@ -152,10 +151,4 @@ class Line(Rect):
         assert len(coords) % 2 == 0, f'number of polygon coordinates must be odd! {geometry} -> {coords}'
         points = [(coords[l * 2], coords[l * 2 + 1]) for l in range(len(coords) // 2)]
         path = 'M ' + ' L '.join(f'{x},{y}' for x, y in points)
-        try:
-            outlined_path = outline_db.get(key=path)
-        except KeyError:
-            outlined_path = outline_stroke.outline_path(path=path, stroke_width=10, svg_width=self.kegg_map.width, svg_height=self.kegg_map.height)
-            outline_db.set(key=path, value=outlined_path)
-
-        return outlined_path
+        return path

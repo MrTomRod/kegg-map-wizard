@@ -9,12 +9,6 @@ import cdblib
 import base64
 from io import BytesIO
 from PIL import Image  # pip install Pillow
-import sqlite3
-
-from lib.OutlineStrokeJsLib import OutlineStrokeJsLib
-from lib.OutlineStrokeInkscape import OutlineStrokeInkscape
-
-outline_stroke = OutlineStrokeInkscape()
 
 
 def encode_png(png_path: str) -> None:
