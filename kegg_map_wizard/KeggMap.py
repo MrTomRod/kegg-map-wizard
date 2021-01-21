@@ -1,7 +1,7 @@
 import logging
 from functools import cached_property
 from kegg_map_wizard.KeggShape import *
-from kegg_map_wizard.kegg_utils import encode_png, load_png
+from kegg_map_wizard.kegg_utils import encode_png, load_png, MAP_TEMPLATE
 
 ROOT = os.path.dirname(__file__)
 
@@ -35,7 +35,7 @@ class KeggMap:
     def shapes(self) -> [KeggShape]:
         if self._shapes is None:
             self.__load_shapes()
-        return self._shapes
+        return self._shapes.values()
 
     def __load_shapes(self):
         with open(self._config_path) as f:
@@ -47,10 +47,15 @@ class KeggMap:
             e.args = tuple([f'Exception occurred in {self}!\n{str(e)}'])
             raise e
 
-        for s in shapes:
-            assert type(s) in [Circle, Rect, Line, Poly]
-
-        self._shapes = shapes
+        # some shapes may have same position. Example: ko00010, poly (576,199,567,202,567,195)
+        self._shapes: dict[str, KeggShape] = {}
+        for shape in shapes:
+            assert type(shape) in [Circle, Rect, Line, Poly], 'sanity check'
+            if shape.raw_position in self._shapes:
+                # add new annotations to existing shape
+                self._shapes[shape.raw_position].annotations.extend(shape.annotations)
+            else:
+                self._shapes[shape.raw_position] = shape
 
     @property
     def circles(self) -> [Circle]:
@@ -102,7 +107,7 @@ class KeggMap:
 
     def svg(self) -> str:
         try:
-            return self.kegg_map_wizard.MAP_TEMPLATE.render(map=self)
+            return MAP_TEMPLATE.render(map=self)
         except Exception as e:
             e.args = tuple([f'Failed to render shape: {self}!\n{str(e)}'])
             raise e

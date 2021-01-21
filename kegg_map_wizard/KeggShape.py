@@ -2,6 +2,7 @@ import os
 import re
 import json
 
+from kegg_map_wizard.kegg_utils import Template, LINE_TEMPLATE, RECT_TEMPLATE, POLY_TEMPLATE, CIRCLE_TEMPLATE
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
 
 ROOT = os.path.dirname(__file__)
@@ -10,6 +11,7 @@ ROOT = os.path.dirname(__file__)
 class KeggShape:
     type: str
     re_geometry: re.Pattern
+    template: Template  # jinja2.Template
 
     def __init__(self, kegg_map, type, geometry, url, description, raw_position):
         self.kegg_map = kegg_map
@@ -31,11 +33,6 @@ class KeggShape:
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.description}>'
-
-    @property
-    def template(self):  # -> jinja2.Template
-        attr_name = f'{self.__class__.__name__.upper()}_TEMPLATE'
-        return getattr(self.kegg_map.kegg_map_wizard, attr_name)
 
     @property
     def color(self) -> str:
@@ -89,6 +86,7 @@ class KeggShape:
 class Poly(KeggShape):
     type = 'poly'
     re_geometry = re.compile(r'^([(,][0-9]+)+\)$')  # (341,292,332,295,332,288), (670,909,661,912,664,909,661,905)
+    template = POLY_TEMPLATE
 
     # x1,y1,x2,y2,..,xn,yn 	Specifies the coordinates of the edges of the polygon.
 
@@ -106,6 +104,7 @@ class Poly(KeggShape):
 class Circle(KeggShape):
     type = 'circle'
     re_geometry = re.compile(r'^\([0-9]+,[0-9]+\) [0-9]+$')  # (246,236) 4
+    template = CIRCLE_TEMPLATE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -118,6 +117,7 @@ class Circle(KeggShape):
 class Rect(KeggShape):
     type = 'rect'
     re_geometry = re.compile(r'^\([0-9]+,[0-9]+\) \([0-9]+,[0-9]+\)$')  # (259,192) (305,209)
+    template = RECT_TEMPLATE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -141,6 +141,7 @@ class Rect(KeggShape):
 class Line(Rect):
     type = 'line'
     re_geometry = re.compile(r'^\([0-9]+(,[0-9]+)+\) [0-9]+$')  # '(138,907,158,907) 2' or longer: '(723,2164,775,2164,775,2164) 3'
+    LINE_TEMPLATE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

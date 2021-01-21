@@ -137,3 +137,11 @@ class TestKeggMapWizard(TestCase):
             print(map)
             svg = map.svg()
             map.save(out_path=f'{PACKAGE_ROOT}/tests/out/{kmw.org}{map.map_id}.svg')
+
+    def test_merge_organisms(self):
+        kmw = self.kmw.merge_organisms(organisms=['ko', 'rn', 'ec'])
+        kmw.color_function = color_function_test
+        for map in kmw.maps():
+            print(map)
+            svg = map.svg()
+            map.save(out_path=f'{PACKAGE_ROOT}/tests/out/{kmw.org}{map.map_id}.svg')

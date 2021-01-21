@@ -3,32 +3,12 @@ import re
 import logging
 from functools import cached_property
 
-from kegg_map_wizard.kegg_utils import get_cdb, fetch_all, ANNOTATION_SETTINGS
+from kegg_map_wizard.kegg_utils import get_cdb, fetch_all, ANNOTATION_SETTINGS, ROOT, DATA_DIR
 from kegg_map_wizard.KeggMap import KeggMap, KeggShape, KeggAnnotation
 from kegg_map_wizard.KeggAnnotation import InvalidAnnotationException
-from jinja2 import Template  # pip install Jinja2
-
-ROOT = os.path.dirname(__file__)
-
-DATA_DIR = os.environ.get('KEGG_MAP_WIZARD_DATA')
-if DATA_DIR is None:
-    logging.info(msg='Environment variable KEGG_MAP_WIZARD_DATA is not set.')
-    DATA_DIR = f'{os.path.dirname(ROOT)}/data'
-
-
-def load_template(name: str) -> Template:
-    with open(f'{ROOT}/template/{name}.svg') as f:
-        template = f.read()
-        return Template(template)
 
 
 class KeggMapWizard:
-    MAP_TEMPLATE = load_template('map')
-    LINE_TEMPLATE = load_template('line')
-    RECT_TEMPLATE = load_template('rect')
-    POLY_TEMPLATE = load_template('poly')
-    CIRCLE_TEMPLATE = load_template('circle')
-
     def __init__(self, org='ko', n_parallel=6, reload_rest_data=False):
         self.org = org
         if org == 'eco':
@@ -46,6 +26,8 @@ class KeggMapWizard:
 
         self.download_rest_data(reload=reload_rest_data)
 
+        self._maps: dict[str, KeggMap] = {}
+
     def __str__(self):
         return f'<KeggMapWizard: {self.org} ({len(self.map_ids)} maps)>'
 
@@ -55,16 +37,15 @@ class KeggMapWizard:
 
     def maps(self) -> [KeggMap]:
         for map_id in self.map_id_to_description.keys():
-            map_png = self.map_png_path(map_id)
-            map_json = map_png + '.json'
-            map_conf = self.map_conf_path(map_id)
-            if os.path.isfile(map_png) and os.path.isfile(map_conf):
-                assert os.path.isfile(map_json), f'File {map_png} has no corresponding json file! ({map_json})'
-                yield self.get_map(map_id)
+            if map_id not in self._maps and os.path.isfile(self.map_png_path(map_id)) and os.path.isfile(self.map_conf_path(map_id)):
+                self._maps[map_id] = self.get_map(map_id)
+        return self._maps.values()
 
     def get_map(self, map_id: str) -> KeggMap:
         assert map_id in self.map_ids, f'There is no map with map_id {map_id} for this organism.'
-        return KeggMap(kegg_map_wizard=self, map_id=map_id)
+        if map_id not in self._maps:
+            self._maps[map_id] = KeggMap(kegg_map_wizard=self, map_id=map_id)
+        return self._maps[map_id]
 
     @cached_property
     def map_ids(self) -> [str]:
@@ -185,49 +166,57 @@ class KeggMapWizard:
         """
         try:
             description = self.files[rest_file].get(query.encode('utf-8')).decode('utf-8')
-        except Exception as e:
+        except Exception:
             logging.warning(f'could not find description for {query} in {rest_file}')
             return ''
         return description
 
-    def parse_anno(self, name: str) -> KeggAnnotation:
+    def parse_anno(self, anno_query: str) -> KeggAnnotation:
         """
+        Parse sometimes cryptic 2nd column of .config files
+
+        anno_query examples:
+          - 'K00716' from '/dbget-bin/www_bget?K00716+K07633+K07634'
+          - 'htext=br08003' from '/kegg-bin/search_htext?htext=br08003'
+
+        :param anno_query: part of a hyperlink
+        :returns: KeggAnnotation object
         """
 
         # handle organism annotations
-        if self.re_org_anno.match(name):
-            return KeggAnnotation(kegg_map_wizard=self, name=name, anno_type=self.org, html_class='enzyme',
-                                  description=self.get_description(query=name, rest_file=self.org))
+        if self.re_org_anno.match(anno_query):
+            return KeggAnnotation(kegg_map_wizard=self, name=anno_query, anno_type=self.org, html_class='enzyme',
+                                  description=self.get_description(query=anno_query, rest_file=self.org))
 
         # handle most common cases
         for anno_type, settings in ANNOTATION_SETTINGS.items():
-            if settings['pattern'].match(name):
+            if settings['pattern'].match(anno_query):
                 if anno_type == 'MAP':
-                    name = name[-5:]
-                query = f'{settings["descr_prefix"]}{name}'
+                    anno_query = anno_query[-5:]
+                query = f'{settings["descr_prefix"]}{anno_query}'
                 return KeggAnnotation(
                     kegg_map_wizard=self,
-                    name=name,
+                    name=anno_query,
                     anno_type=anno_type,
                     html_class=settings['html_class'],
                     description=self.get_description(query=query, rest_file=settings['rest_file'])
                 )
 
         # handle anomalies
-        if name.startswith('dr:D'):
+        if anno_query.startswith('dr:D'):
             # sometimes drugs contain the 'dr:' prefix
             anno_type = 'D'
-            name = name.lstrip('dr:')
-        elif name.startswith('htext=br'):
+            name = anno_query.lstrip('dr:')
+        elif anno_query.startswith('htext=br'):
             # strange br: 'htext=br08003&search_string=%22Acridone%20alkaloids%22&option=-n'
             anno_type = 'BR'
-            name = name.lstrip('htext=br').lstrip(':')
+            name = anno_query.lstrip('htext=br').lstrip(':')
             name = f'br:{name[:5]}'
-        elif name == 'map4670':
+        elif anno_query == 'map4670':
             # strange anomaly
             anno_type, name = 'MAP', 'map04670'
         else:
-            raise InvalidAnnotationException(f'Annotation {name} does not match any pattern!')
+            raise InvalidAnnotationException(f'Annotation {anno_query} does not match any pattern!')
 
         settings = ANNOTATION_SETTINGS[anno_type]
         assert settings['pattern'].match(name), f'annotation ({anno_type}) does not match pattern: {name}'
@@ -242,3 +231,35 @@ class KeggMapWizard:
             html_class=settings['html_class'],
             description=self.get_description(query=query, rest_file=settings['rest_file'])
         )
+
+    @staticmethod
+    def merge_organisms(organisms: [str], n_parallel=6, reload_rest_data=False):  # -> KeggMapWizard
+        wizards = {org: KeggMapWizard(org=org, n_parallel=n_parallel, reload_rest_data=reload_rest_data)
+                   for org in organisms}
+
+        maps: dict[str, KeggMap] = {}  # raw_position -> KeggShape
+
+        for org, wizard in wizards.items():
+            print(f'merging {org}')
+            wizard: KeggMapWizard
+            for map in wizard.maps():
+                map.shapes()
+
+                if map.map_id not in maps:
+                    maps[map.map_id] = map
+                else:
+                    master_map: KeggMap = maps[map.map_id]
+                    master_shapes: dict[str, KeggShape] = master_map._shapes
+                    for raw_position, shape in map._shapes.items():
+                        if raw_position in master_shapes:
+                            master_shape: KeggShape = master_shapes[raw_position]
+                            master_shape.annotations.extend(shape.annotations)
+
+                        else:
+                            master_shapes[raw_position] = shape
+
+        wizard.org = '+'.join(organisms)
+        wizard._maps = maps
+        wizard.re_org_anno = None
+        wizard.download_maps = None
+        return wizard

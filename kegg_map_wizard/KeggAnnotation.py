@@ -31,21 +31,21 @@ class KeggAnnotation:
     @staticmethod
     def generate(kegg_map_wizard, url: str) -> list:
 
-        url_prefix, annotations = url.split('?', maxsplit=1)
+        url_prefix, annotations_hyperlink = url.split('?', maxsplit=1)
 
         assert url_prefix in ['/dbget-bin/www_bget', '/kegg-bin/show_pathway', '/kegg-bin/search_htext'], \
             f'Error while parsing annotations-url: "{url}": bad url-prefix'
-        assert '?' not in annotations
+        assert '?' not in annotations_hyperlink
 
-        if '/' in annotations:
-            annotations = annotations.replace('/', '+')
+        if '/' in annotations_hyperlink:
+            annotations = annotations_hyperlink.replace('/', '+')
 
-        ids = annotations.split('+')
+        anno_queries = annotations_hyperlink.split('+')
 
         annos = []
-        for id in ids:
+        for anno_query in anno_queries:
             try:
-                annos.append(kegg_map_wizard.parse_anno(id))
+                annos.append(kegg_map_wizard.parse_anno(anno_query))
             except InvalidAnnotationException as e:
                 logging.warning(e)
 
