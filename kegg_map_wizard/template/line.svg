@@ -1,0 +1,1 @@
+<path title="{{shape.title}}" class="shape {{shape.classes|join(' ')}}" data-annotations='{{shape.annotations_serialized|safe}}' fill="{{shape.color}}" d="{{shape.coords}}"/>
