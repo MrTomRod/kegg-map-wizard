@@ -9,7 +9,7 @@ from kegg_map_wizard.KeggAnnotation import InvalidAnnotationException
 
 
 class KeggMapWizard:
-    def __init__(self, org='ko', n_parallel=6, reload_rest_data=False):
+    def __init__(self, org='ko', n_parallel=6, reload_rest_data=False, reload_maps=False):
         self.org = org
         if org == 'eco':
             self.re_org_anno = re.compile(r'^eco:b[0-9]+$')  # 'eco:b2286'
@@ -25,15 +25,21 @@ class KeggMapWizard:
             os.makedirs(dir, exist_ok=True)
 
         self.download_rest_data(reload=reload_rest_data)
+        self.download_all_maps(reload=reload_maps)
 
         self._maps: dict[str, KeggMap] = {}
 
     def __str__(self):
         return f'<KeggMapWizard: {self.org} ({len(self.map_ids)} maps)>'
 
-    @staticmethod
-    def color_function(shape: KeggShape):
+    def color_function(self, shape: KeggShape):
         return 'transparent'
+
+    def set_color_function(self, color_function):
+        if hasattr(self, '_wizards'):
+            for wizard in self._wizards.values():
+                wizard.color_function = color_function
+        self.color_function = color_function
 
     def maps(self) -> [KeggMap]:
         for map_id in self.map_id_to_description.keys():
@@ -259,6 +265,7 @@ class KeggMapWizard:
                             master_shapes[raw_position] = shape
 
         wizard.org = '+'.join(organisms)
+        wizard._wizards = wizards
         wizard._maps = maps
         wizard.re_org_anno = None
         wizard.download_maps = None
