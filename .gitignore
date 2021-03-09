@@ -75,3 +75,4 @@ __pycache__/
 # data folder
 data/
 /lib/outline-stroke-cli-1.1.1/
+/playground.py

@@ -1,1 +1,1 @@
-<path title="{{shape.title}}" class="shape {{shape.classes|join(' ')}}" data-apply-color-to="stroke" data-annotations='{{shape.annotations_serialized|safe}}' fill="none" stroke="{{shape.color}}" stroke-width="10" d="{{shape.coords}}"/>
+<path title="{{shape.description}}" class="shape {{shape.classes|join(' ')}}" data-apply-color-to="stroke" data-annotations='{{shape.annotations_serialized|safe}}' fill="none" stroke="{{shape.color}}" stroke-width="10" d="{{shape.coords}}"/>

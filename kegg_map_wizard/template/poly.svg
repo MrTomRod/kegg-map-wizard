@@ -1,1 +1,1 @@
-<polygon title="{{shape.title}}" class="shape {{shape.classes|join(' ')}}" data-annotations='{{shape.annotations_serialized|safe}}' stroke="transparent" stroke-width="3" fill="{{shape.color}}" points="{{shape.coords}}"/>
+<polygon title="{{shape.description}}" class="shape {{shape.classes|join(' ')}}" data-annotations='{{shape.annotations_serialized|safe}}' stroke="transparent" stroke-width="3" fill="{{shape.color}}" points="{{shape.coords}}"/>

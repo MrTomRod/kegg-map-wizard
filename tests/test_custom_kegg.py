@@ -29,7 +29,7 @@ def run_wizard(org, color_function=None, dirname: str = None):
     out_path = mk_or_empty_dir(f'{PACKAGE_ROOT}/tests/out/{dirname}')
 
     if type(org) is list:
-        kmw = KeggMapWizard.merge_organisms(organisms=['ko', 'rn', 'ec'])
+        kmw = KeggMapWizard.merge_organisms(organisms=org)
     else:
         kmw = KeggMapWizard(org=org)
 
@@ -63,8 +63,8 @@ class TestKeggMapWizard(TestCase):
     def test_kegg_annotation(self):
         kmw = KeggMapWizard(org='ko')
         kas = KeggAnnotation.generate(kmw, url='/kegg-bin/show_pathway?map00905')
-        for ka in kas:
-            print(ka, ka.description)
+        for position, ka in kas.items():
+            print(position, ka, ka.description)
 
     def test_kegg_shape(self):
         kmw = KeggMapWizard(org='ko')
@@ -86,7 +86,7 @@ class TestKeggMapWizard(TestCase):
         m = kmw.get_map(map_id='01058')
         kss = m.shapes()
         for ks in kss:
-            for anno in ks.annotations:
+            for anno in ks.annotations():
                 print(anno, anno.description)
 
     def test_map_annos(self):
@@ -95,7 +95,7 @@ class TestKeggMapWizard(TestCase):
             print(m)
             kss = m.shapes()
             for ks in kss:
-                for anno in ks.annotations:
+                for anno in ks.annotations():
                     x = anno.description
 
     def test_render_single_map(self):
@@ -140,3 +140,6 @@ class TestKeggMapWizard(TestCase):
 
     def test_merge_organisms(self):
         run_wizard(dirname='merge', org=['ko', 'rn', 'ec'], color_function=color_function_test)
+
+    def test_merge_organisms_transparent(self):
+        run_wizard(dirname='merge-transparent', org=['ko', 'rn', 'ec'])

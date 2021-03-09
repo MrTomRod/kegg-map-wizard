@@ -1,13 +1,21 @@
 "use strict"
 
+function calcColorArray(nSteps, colors) {
+    if (nSteps === 1) {
+        return ['transparent', colors[1]]
+    } else {
+        return ['transparent'].concat(chroma.scale(colors).mode('lch').colors(nSteps))
+    }
+}
+
 /**
  * Remove metadata tags from shapes
  *
  * From each shape, remove:
- *   - data-strains
+ *   - data-organisms
  *   - data-manual-number
  *   - from each annotation in data-annotations:
- *      - 'strains'
+ *      - 'organisms'
  *      - 'manual-number
  *
  * Restores fill/stroke to transparent.
@@ -15,16 +23,16 @@
  * @param svg {Object} target svg element
  */
 function resetMap(svg) {
-    $(svg).find(".shape").each(function (i, shape) {
+    $(svg).find('.shape').each(function (i, shape) {
         // make fill/stroke transparent
         colorShape(shape, 'transparent')
-        // empty strains from shape
-        $(shape).removeData('strains')
+        // empty organisms from shape
+        $(shape).removeData('organisms')
         $(shape).removeData('manual-number')
-        // empty strains from annotations
+        // empty organisms from annotations
         let annotations = $(shape).data('annotations')
         annotations.forEach(function (annotation, index) {
-            delete annotations[index]['strains']
+            delete annotations[index]['organisms']
             delete annotations[index]['manual-number']
         })
         $(this).data('annotations', annotations)
@@ -45,12 +53,12 @@ function resetMap(svg) {
  */
 function highlightBinary(
     svg,
-    color = "red",
+    color = 'red',
     annotations_to_highlight = []  // e.g. ['K00001']
 ) {
     resetMap(svg)
 
-    $(".shape").each(function () {
+    $('.shape').each(function () {
         let annotations = $(this).data('annotations')
         if (getCoveredAnnotations(annotations_to_highlight, annotations).length) {
             colorShape(this, color)
@@ -61,146 +69,155 @@ function highlightBinary(
 }
 
 /**
- * Colorize shapes by how many strains have their annotations
+ * Colorize shapes by how many organisms have their annotations
  *
  * @param svg {Object} target svg element
  * @param  {Array}  colors Two colors: The first for shapes that are covered by one annotation,
  *   the second for shapes that are covered by all annotations
- * @param  {Object} strains A dictionary { strain => [ annotation ]}
- *   Example: { Strain1: [ "R09127", "R01788", … ], Strain2: [ … ], … }
+ * @param  {Object} organisms A dictionary { organism => [ annotation ]}
+ *   Example: { Organism1: [ "R09127", "R01788", … ], Organism2: [ … ], … }
  *
  * Adds...
- *   - 'data-strains' to shape, for example:
- *        { covering: [ "Strain1", … ], not-covering: [] }
- *   - 'strains' to annotations in 'data-annotations':
- *        { name: "K01223", …, strains: [ "Strain1", … ] }
+ *   - 'data-organisms' to shape, for example:
+ *        { covering: [ "Organism1", … ], not-covering: [] }
+ *   - 'organisms' to annotations in 'data-annotations':
+ *        { name: "K01223", …, organisms: { covering: [ "Organism1", … ], not-covering: [] } }
  *
  * Changes fill/stroke to a color.
  *
  * This data can be removed using resetMap()
  */
-function highlightStrains(
+function highlightOrganisms(
     svg,
-    strains,
+    organisms,
     colors = ['yellow', 'red']
 ) {
     resetMap(svg)
 
-    let strainNames = Object.keys(strains)
-    let colorArray = ['transparent'].concat(chroma.scale(colors).mode('lch').colors(strainNames.length))
+    let organismNames = Object.keys(organisms)
+    let colorArray = calcColorArray(organismNames.length, colors)
 
     function singleColorShape(shape) {
         let annotations = $(shape).data('annotations')
-        let coveringStrains = new Set()
-        let notCoveringStrains = new Set()
+        let coveringOrganisms = new Set()
+        let notCoveringOrganisms = new Set()
         annotations.forEach(function (annotation, index) {
-            annotations[index]['strains'] = new Set()
+            annotations[index]['organisms'] = {'covering': new Set(), 'not-covering': new Set()}
         })
+        let dataOrganisms = {'covering': new Set(), 'not-covering': new Set()}
 
-        // for each strain, see if it covers anything
-        $.each(strains, function (s_name, s_annotations) {
+        // for each organism, see if it covers anything
+        $.each(organisms, function (o_name, o_annotations) {
             let covering = false
             annotations.forEach(function (annotation, index) {
-                if (s_annotations.includes(annotation['name'])) {
-                    annotations[index]['strains'].add(s_name)
-                    coveringStrains.add(s_name)
+                if (o_annotations.includes(annotation['name'])) {
+                    annotations[index]['organisms']['covering'].add(o_name)
                     covering = true
+                } else {
+                    annotations[index]['organisms']['not-covering'].add(o_name)
                 }
             })
-            if (!covering) {
-                notCoveringStrains.add(s_name)
+            if (covering) {
+                dataOrganisms['covering'].add(o_name)
+            } else {
+                dataOrganisms['not-covering'].add(o_name)
             }
 
         })
 
         // write info back to shape
-        $(shape).data('strains', {"covering": coveringStrains, "not-covering": notCoveringStrains})
+        $(shape).data('organisms', dataOrganisms)
         $(shape).data('annotations', annotations)
 
         // color shape
-        colorShape(shape, colorArray[coveringStrains.size])
+        colorShape(shape, colorArray[dataOrganisms['covering'].size])
     }
 
-    $(".shape").each(function (index) {
+    $('.shape').each(function (index) {
         singleColorShape(this)
     })
 }
 
 /**
- * Colorize shapes by how many strains have their annotations
+ * Colorize shapes by how many organisms have their annotations
  *
  * @param svg {Object} target svg element
  * @param  {Array}  colors Two colors: The first for shapes that are covered by one annotation,
  *   the second for shapes that are covered by all annotations
- * @param  {Object} groupsOfStrains A dictionary of strain dictionaries {group => { strain => [ annotation ]} }
- *   Example: { Group1: { Strain1: [ "R09127", "R01788", … ], Strain2: [ … ], … }, Group2: {…} }
+ * @param  {Object} groupsOfOrganisms A dictionary of organism dictionaries {group => { organism => [ annotation ]} }
+ *   Example: { Group1: { Organism1: [ "R09127", "R01788", … ], Organism2: [ … ], … }, Group2: {…} }
  *
  * Adds...
- *   - 'data-strains' to shape, for example:
- *        { covering: { Group1: [ "Strain1", … ], Group2: []}}, not-covering: { Group1: [], Group2: ["StrainA"] }
- *   - 'strains' to annotations in 'data-annotations':
- *        { name: "K01223", …, strains: [ "Strain1", … ] }
+ *   - 'data-organisms' to shape, for example:
+ *        { covering: { Group1: [ "Organism1", … ], Group2: []}}, not-covering: { Group1: [], Group2: ["OrganismA"] }
+ *   - 'organisms' to annotations in 'data-annotations':
+ *        { name: "K01223", …, organisms: [ "Organism1", … ] }
  *   - LinearGradient defs to SVG
  *
  * Changes fill/stroke to a LinearGradient.
  *
  * This data can be removed using resetMap()
  */
-function highlightGroupsOfStrains(
+function highlightGroupsOfOrganisms(
     svg,
-    groupsOfStrains,
+    groupsOfOrganisms,
     colors = ['yellow', 'red']
 ) {
     resetMap(svg)
 
-    const nGroups = Object.keys(groupsOfStrains).length
+    const nGroups = Object.keys(groupsOfOrganisms).length
 
-    // calculate color gradient for all groups of strains
+    // calculate color gradient for all groups of organisms
     let groupColorArrays = {}
-    for (const [groupName, strains] of Object.entries(groupsOfStrains)) {
-        groupColorArrays[groupName] = ['transparent'].concat(chroma.scale(colors).mode('lch').colors(Object.keys(strains).length))
+    for (const [groupName, organisms] of Object.entries(groupsOfOrganisms)) {
+        groupColorArrays[groupName] = calcColorArray(Object.keys(organisms).length, colors)
     }
 
     // create svg defs element to store gradients
-    let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
     defs.id = 'shape-color-defs'
 
     function multicolorShape(shape, shapeIndex) {
         let groupColors = {}
         let annotations = $(shape).data('annotations')
-        let coveringStrainGroups = {}
-        let notCoveringStrainGroups = {}
+        let coveringOrganismGroups = {}
+        let notCoveringOrganismGroups = {}
+
         annotations.forEach(function (annotation, index) {
-            annotations[index]['strains'] = new Set()
+            annotations[index]['organisms'] = Object.keys(groupsOfOrganisms).reduce(function (obj, groupName) {
+                obj[groupName] = {'covering': new Set(), 'not-covering': new Set()}
+                return obj
+            }, {})
         })
+        let dataOrganisms = {}
 
-        for (const [groupName, strains] of Object.entries(groupsOfStrains)) {
-            let coveringStrains = new Set()
-            let notCoveringStrains = new Set()
+        for (const [groupName, organisms] of Object.entries(groupsOfOrganisms)) {
+            dataOrganisms[groupName] = {'covering': new Set(), 'not-covering': new Set()}
 
-            // for each strain, see if it covers anything
-            $.each(strains, function (s_name, s_annotations) {
+            // for each organism, see if it covers anything
+            $.each(organisms, function (o_name, o_annotations) {
                 let covering = false
                 annotations.forEach(function (annotation, index) {
-                    if (s_annotations.includes(annotation['name'])) {
-                        annotations[index]['strains'].add(s_name)
-                        coveringStrains.add(s_name)
+                    if (o_annotations.includes(annotation['name'])) {
+                        annotations[index]['organisms'][groupName]['covering'].add(o_name)
                         covering = true
+                    } else {
+                        annotations[index]['organisms'][groupName]['not-covering'].add(o_name)
                     }
                 })
-                if (!covering) {
-                    notCoveringStrains.add(s_name)
+                if (covering) {
+                    dataOrganisms[groupName]['covering'].add(o_name)
+                } else {
+                    dataOrganisms[groupName]['not-covering'].add(o_name)
                 }
             })
 
             // write info back to shape
-            coveringStrainGroups[groupName] = coveringStrains
-            notCoveringStrainGroups[groupName] = notCoveringStrains
-            groupColors[groupName] = groupColorArrays[groupName][coveringStrains.size]
+            groupColors[groupName] = groupColorArrays[groupName][dataOrganisms[groupName]['covering'].size]
         }
 
         // write info back to shape
-        $(shape).data('strains', {"covering": coveringStrainGroups, "not-covering": notCoveringStrainGroups})
+        $(shape).data('organisms', dataOrganisms)
         $(shape).data('annotations', annotations)
 
         // color shape
@@ -209,16 +226,16 @@ function highlightGroupsOfStrains(
         } else {
             let gradient = createGradient(groupColors, nGroups, shape)
             gradient.id = 'gradient-shape-' + shapeIndex
-            defs.appendChild(gradient);
+            defs.appendChild(gradient)
             colorShape(shape, `url(#gradient-shape-${shapeIndex})`)
         }
     }
 
-    $(svg).find(".shape").each(function (index) {
+    $(svg).find('.shape').each(function (index) {
         multicolorShape(this, index)
     })
 
-    svg.appendChild(defs);
+    svg.appendChild(defs)
 }
 
 /**
@@ -230,7 +247,7 @@ function highlightGroupsOfStrains(
  * @return {Object} gradient An SVG gradient element
  */
 function createGradient(groupColors, nGroups, targetElement) {
-    let gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    let gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
     const protoStops = Array(nGroups + 1).fill().map((_, index) => index / nGroups * 100 + '%')
     let stops = []
     Object.values(groupColors).forEach(function (color, i) {
@@ -242,9 +259,9 @@ function createGradient(groupColors, nGroups, targetElement) {
     // Create stop elements
     for (var i = 0, length = stops.length; i < length; i++) {
         let stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-        stop.setAttribute('offset', stops[i].offset);
-        stop.setAttribute('stop-color', stops[i].color);
-        gradient.appendChild(stop);
+        stop.setAttribute('offset', stops[i].offset)
+        stop.setAttribute('stop-color', stops[i].color)
+        gradient.appendChild(stop)
     }
 
     // set gradient direction
@@ -290,7 +307,7 @@ function highlightContinuous(
         let annotations = $(shape).data('annotations')
         let manualNumber
 
-        // for each strain, see if it covers anything
+        // for each organism, see if it covers anything
         annotations.forEach(function (annotation, index) {
             if (myAnnotations.includes(annotation['name'])) {
                 manualNumber = annotation_to_number[annotation['name']]
@@ -310,7 +327,7 @@ function highlightContinuous(
         colorShape(shape, chroma.mix(colors[0], colors[1], manualNumber))
     }
 
-    $(".shape").each(function (index) {
+    $('.shape').each(function (index) {
         manualShape(this)
     })
 }
@@ -333,12 +350,12 @@ function colorShape(shape, attributeValue) {
 /**
  * Returns the annotations that are covered by the shape
  *
- * @param  {Array}  StrainAnnotations Array of annotations, e.g. [ "C00033", "C00031", … ]
+ * @param  {Array}  OrganismAnnotations Array of annotations, e.g. [ "C00033", "C00031", … ]
  * @param  {Object} ShapeAnnotations Array of shape-annotation-objects [ { name="K03103" }, … ]
  * @return {Array}  Array of annotations that are covered by the shape
  */
-function getCoveredAnnotations(StrainAnnotations, ShapeAnnotations) {
-    return ShapeAnnotations.filter(item => StrainAnnotations.includes(item['name']))
+function getCoveredAnnotations(OrganismAnnotations, ShapeAnnotations) {
+    return ShapeAnnotations.filter(item => OrganismAnnotations.includes(item['name']))
 }
 
 /**
@@ -388,7 +405,7 @@ function saveSvg(svg) {
     data = encodeURIComponent(data)
 
     // add file type declaration
-    data = "data:image/svg+xml;charset=utf-8," + data
+    data = 'data:image/svg+xml;charset=utf-8,' + data
 
     saveUriAs(data, 'pathway.svg')
 }

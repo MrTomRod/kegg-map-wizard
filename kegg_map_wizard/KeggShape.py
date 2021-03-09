@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import logging
 
 from kegg_map_wizard.kegg_utils import Template, LINE_TEMPLATE, RECT_TEMPLATE, POLY_TEMPLATE, CIRCLE_TEMPLATE
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
@@ -29,10 +30,13 @@ class KeggShape:
             e.args = tuple([f'Error occurred while parsing geometry: {repr(geometry)}\n{str(e)}'])
             raise e
 
-        self.annotations = KeggAnnotation.generate(self.kegg_map.kegg_map_wizard, url)
+        self.annotations_dict = KeggAnnotation.generate(self.kegg_map.kegg_map_wizard, url)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.description}>'
+
+    def annotations(self) -> list:
+        return list(self.annotations_dict.values())
 
     @property
     def color(self) -> str:
@@ -40,14 +44,14 @@ class KeggShape:
 
     @property
     def classes(self):
-        classes = set(anno.html_class for anno in self.annotations)
+        classes = set(anno.html_class for anno in self.annotations())
         if len(classes) > 1:
             print('Weird. A shape should have only one class.', self, classes)
         return classes
 
     @property
     def annotations_serialized(self) -> str:
-        return json.dumps([anno.as_dict for anno in self.annotations])
+        return json.dumps([anno.as_dict for anno in self.annotations()])
         # .replace('-', '').replace("'", '').replace('-', '').replace('<', '').replace('>', '')
 
     @property
@@ -81,6 +85,15 @@ class KeggShape:
 
     def calc_geometry(self, geometry: str):
         raise NotImplementedError('This is an abstract class!')
+
+    def merge(self, other_shape, expect_duplicates=True):
+        my_annos = self.annotations_dict
+        for key, other_anno in other_shape.annotations_dict.items():
+            if key in my_annos:
+                if expect_duplicates:
+                    logging.info(f'Duplicate annotations: {other_anno} in {self.kegg_map} at {self.raw_position}')
+            else:
+                self.annotations_dict[key] = other_anno
 
 
 class Poly(KeggShape):
@@ -141,7 +154,7 @@ class Rect(KeggShape):
 class Line(Rect):
     type = 'line'
     re_geometry = re.compile(r'^\([0-9]+(,[0-9]+)+\) [0-9]+$')  # '(138,907,158,907) 2' or longer: '(723,2164,775,2164,775,2164) 3'
-    LINE_TEMPLATE
+    template = LINE_TEMPLATE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

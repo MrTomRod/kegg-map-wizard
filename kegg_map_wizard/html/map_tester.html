@@ -14,7 +14,7 @@
     <!-- html2canvas to export svgs as pngs -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.0.0-rc.5/dist/html2canvas.min.js"></script>
 
-    <!-- This is my main script. Main methods: resetMap, highlightBinary, highlightStrains, highlightContinuous -->
+    <!-- This is my main script. Main methods: resetMap, highlightBinary, highlightOrganisms, highlightContinuous -->
     <script src="../js/PathwaySvgLib.js"></script>
     <!-- A simple and ugly right click menu for testing purposes only -->
     <script src="../js/DummyRightClickMenu.js"></script>
@@ -78,13 +78,15 @@
     <button type="button" class="btn btn-primary" onclick="loadPrevMap()">Previous Map</button>
     <button type="button" class="btn btn-success" onclick="colorizeEverythingBinary()">Colorize Everything Binary</button>
     <button type="button" class="btn btn-info" onclick="colorizeEverythingContinuous()">Colorize Everything Continuous</button>
-    <button type="button" class="btn btn-warning" onclick="colorizeRandomStrains()">Colorize Random Strains</button>
-    <button type="button" class="btn btn-warning" onclick="colorizeRandomGroupsOfStrains()">Colorize Random Group of Strains</button>
+    <button type="button" class="btn btn-warning" onclick="colorizeRandomOrganisms()">Colorize Random Organisms</button>
+    <button type="button" class="btn btn-warning" onclick="colorizeRandomGroupsOfOrganisms()">Colorize Random Group of Organisms</button>
     <button type="button" class="btn btn-danger" onclick="resetMap(document.getElementById('custom-kegg').firstChild)">Reset Map</button>
     <button type="button" class="btn btn-light" onclick="savePng(document.getElementById('custom-kegg').firstChild)">Save as PNG</button>
     <button type="button" class="btn btn-light" onclick="saveSvg(document.getElementById('custom-kegg').firstChild)">Save as SVG</button>
     <button type="button" class="btn btn-primary" onclick="loadNextMap()">Next Map</button>
 </div>
+
+<br>
 
 <div id="custom-kegg"></div>
 
@@ -140,39 +142,40 @@
         )
     }
 
-    colorizeRandomStrains = function () {
-        highlightStrains(
+    colorizeRandomOrganisms = function () {
+        highlightOrganisms(
             svg = document.getElementById('custom-kegg').firstChild,
-            strains = createRandomStrains()
+            organisms = createRandomOrganisms('', 3)
         )
     }
 
-    colorizeRandomGroupsOfStrains = function () {
-        highlightGroupsOfStrains(
+
+    colorizeRandomGroupsOfOrganisms = function () {
+        highlightGroupsOfOrganisms(
             svg = document.getElementById('custom-kegg').firstChild,
-            groupsOfStrains = {
-                Grp1: createRandomStrains('-g1-'),
-                Grp2: createRandomStrains('-g2-'),
-                // Grp3: createRandomStrains('-g3-'),
-                // Grp4: createRandomStrains('-g4-'),
-                // Grp5: createRandomStrains('-g5-'),
+            groupsOfOrganisms = {
+                Grp1: createRandomOrganisms('-g1-'),
+                Grp2: createRandomOrganisms('-g2-'),
+                // Grp3: createRandomOrganisms('-g3-'),
+                // Grp4: createRandomOrganisms('-g4-'),
+                // Grp5: createRandomOrganisms('-g5-'),
             }
         )
     }
 
-    createRandomStrains = function (groupName = '') {
+    createRandomOrganisms = function (groupName = '', nOrganisms = 4) {
         const all_annos = getAllAnnotations()
-        const annos_per_strain = Math.floor(all_annos.length / 10)
+        const annos_per_organism = Math.floor(all_annos.length / 10)
 
-        let createRandomStrain = function () {
-            return getRandom(all_annos, annos_per_strain)
+        let createRandomOrganism = function () {
+            return getRandom(all_annos, annos_per_organism)
         }
 
         let result = {}
-        result[`Strain${groupName}1`] = createRandomStrain()
-        result[`Strain${groupName}2`] = createRandomStrain()
-        result[`Strain${groupName}3`] = createRandomStrain()
-        result[`Strain${groupName}4`] = createRandomStrain()
+        Array(nOrganisms).fill().map((item, i) => {
+            result[`Organism${groupName}${i}`] = createRandomOrganism()
+        })
+
         return result
     }
 

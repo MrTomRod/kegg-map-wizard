@@ -33,9 +33,12 @@ class KeggMap:
         return f'<KeggMap {self.kegg_map_wizard.org}{self.map_id}: {self.title}>'
 
     def shapes(self) -> [KeggShape]:
+        return self.shapes_dict().values()
+
+    def shapes_dict(self) -> dict[str, KeggShape]:
         if self._shapes is None:
             self.__load_shapes()
-        return self._shapes.values()
+        return self._shapes
 
     def __load_shapes(self):
         with open(self._config_path) as f:
@@ -53,7 +56,7 @@ class KeggMap:
             assert type(shape) in [Circle, Rect, Line, Poly], 'sanity check'
             if shape.raw_position in self._shapes:
                 # add new annotations to existing shape
-                self._shapes[shape.raw_position].annotations.extend(shape.annotations)
+                self._shapes[shape.raw_position].merge(shape)
             else:
                 self._shapes[shape.raw_position] = shape
 
@@ -121,3 +124,13 @@ class KeggMap:
         else:
             with open(out_path, 'w') as out:
                 out.write(svg)
+
+    def merge(self, other_map):
+        assert self is not other_map and self.map_id == other_map.map_id
+        my_shapes = self.shapes_dict()
+        for raw_position, other_shape in other_map.shapes_dict().items():
+            other_shape:KeggShape
+            if raw_position in my_shapes:
+                my_shapes[raw_position].merge(other_shape, expect_duplicates=True)
+            else:
+                my_shapes[raw_position]=other_shape

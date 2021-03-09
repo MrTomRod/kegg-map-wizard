@@ -1,8 +1,8 @@
 function Set_toJSON(key, value) {
-  if (typeof value === 'object' && value instanceof Set) {
-    return [...value];
-  }
-  return value;
+    if (typeof value === 'object' && value instanceof Set) {
+        return [...value];
+    }
+    return value;
 }
 
 function showMapMenu(event, shape) {
@@ -11,7 +11,7 @@ function showMapMenu(event, shape) {
     let mm = new MapMenu(event, shape)
 
     const annotations = $(shape).data('annotations')
-    const strains = $(shape).data('strains')
+    const organisms = $(shape).data('organisms')
     const manualNumber = $(shape).data('manual-number')
     const classes = $(shape).attr('class')
 
@@ -25,11 +25,11 @@ raw HTML:</h6><textarea style="width:100%; font-family: Monospace; font-size:10p
 
 
     // COVERED STRAINS
-    if (strains !== undefined) {
+    if (organisms !== undefined) {
         mm.appendElement(`
 <h6 class="dropdown-header context-menu-header">
-data-strains:</h6>
-<p class="dropdown-header json">${JSON.stringify(strains, Set_toJSON, 4)}</p>
+data-organisms:</h6>
+<p class="dropdown-header json">${JSON.stringify(organisms, Set_toJSON, 4)}</p>
 `)
     }
 

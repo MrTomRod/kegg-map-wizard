@@ -240,6 +240,7 @@ class KeggMapWizard:
 
     @staticmethod
     def merge_organisms(organisms: [str], n_parallel=6, reload_rest_data=False):  # -> KeggMapWizard
+        assert len(organisms) > 0
         wizards = {org: KeggMapWizard(org=org, n_parallel=n_parallel, reload_rest_data=reload_rest_data)
                    for org in organisms}
 
@@ -249,20 +250,11 @@ class KeggMapWizard:
             print(f'merging {org}')
             wizard: KeggMapWizard
             for map in wizard.maps():
-                map.shapes()
-
-                if map.map_id not in maps:
-                    maps[map.map_id] = map
-                else:
+                if map.map_id in maps:
                     master_map: KeggMap = maps[map.map_id]
-                    master_shapes: dict[str, KeggShape] = master_map._shapes
-                    for raw_position, shape in map._shapes.items():
-                        if raw_position in master_shapes:
-                            master_shape: KeggShape = master_shapes[raw_position]
-                            master_shape.annotations.extend(shape.annotations)
-
-                        else:
-                            master_shapes[raw_position] = shape
+                    master_map.merge(map)
+                else:
+                    maps[map.map_id] = map
 
         wizard.org = '+'.join(organisms)
         wizard._wizards = wizards

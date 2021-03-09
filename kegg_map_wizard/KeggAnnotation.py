@@ -29,7 +29,7 @@ class KeggAnnotation:
         )
 
     @staticmethod
-    def generate(kegg_map_wizard, url: str) -> list:
+    def generate(kegg_map_wizard, url: str) -> dict:
 
         url_prefix, annotations_hyperlink = url.split('?', maxsplit=1)
 
@@ -42,10 +42,12 @@ class KeggAnnotation:
 
         anno_queries = annotations_hyperlink.split('+')
 
-        annos = []
+        annos = {}
         for anno_query in anno_queries:
             try:
-                annos.append(kegg_map_wizard.parse_anno(anno_query))
+                anno = kegg_map_wizard.parse_anno(anno_query)
+                assert (anno.anno_type, anno.name) not in annos, 'error: duplicate annotations in shape'
+                annos[(anno.anno_type, anno.name)] = anno
             except InvalidAnnotationException as e:
                 logging.warning(e)
 
