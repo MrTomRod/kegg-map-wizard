@@ -2,9 +2,9 @@
 
 function calcColorArray(nSteps, colors) {
     if (nSteps === 1) {
-        return ['transparent', colors[1]]
+        return [colors[0], colors[3]]
     } else {
-        return ['transparent'].concat(chroma.scale(colors).mode('lch').colors(nSteps))
+        return [colors[0]].concat(chroma.scale([colors[1], colors[2]]).mode('lch').colors(nSteps-1)).concat([colors[3]])
     }
 }
 
@@ -90,7 +90,7 @@ function highlightBinary(
 function highlightOrganisms(
     svg,
     organisms,
-    colors = ['yellow', 'red']
+    colors = ['transparent', 'yellow', 'red', 'green']
 ) {
     resetMap(svg)
 
@@ -161,7 +161,7 @@ function highlightOrganisms(
 function highlightGroupsOfOrganisms(
     svg,
     groupsOfOrganisms,
-    colors = ['yellow', 'red']
+    colors = ['transparent', 'yellow', 'red', 'green']
 ) {
     resetMap(svg)
 
