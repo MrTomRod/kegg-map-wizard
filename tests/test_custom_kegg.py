@@ -57,7 +57,6 @@ def color_function_multigroups(shape: KeggShape):
         offset = ((i + 1) / n_colors) * 100
         color_before = random_colors[i]
         color_after = random_colors[i + 1]
-        print(offset, color_before, color_after)
         stops += f'<stop offset="{offset}%" stop-color="{color_before}"></stop>'
         stops += f'<stop offset="{offset}%" stop-color="{color_after}"></stop>'
 
