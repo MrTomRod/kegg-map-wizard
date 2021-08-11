@@ -1,15 +1,13 @@
 # KeggMapWizard
 
-This script downloads KEGG REST data, KEGG configs and KEGG PNGs and converts them into SVG maps 
-which can be processed dynamically using modern browsers.
+This script downloads KEGG REST data, KEGG configs and KEGG PNGs and converts them into SVG maps which can be processed dynamically using modern
+browsers.
 
 I included a simple Javascript library that enables coloring the maps. It requires
 
 - jQuery
 - [chroma.js](https://gka.github.io/chroma.js/) to calculate color gradients
 - [html2canvas](https://html2canvas.hertzen.com/) to render the SVGs as PNGs
-
-
 
 ## Creating the SVGs
 
@@ -107,21 +105,45 @@ highlightContinuous(
 
 ![Custom-KEGG schema](./resources/continuous.png)
 
-color strains with gradient:
+color organisms with gradient:
 
 ```javascript
-highlightStrains(
+highlightOrganisms(
     svg = document.getElementById('some-svg'),
-    strains = {
-        "Strain 1": ["R01518", "K15778", "K22473"],
-        "Strain 2": ["K02446", "R00959", "C01172"],
-        "Strain 3": ["R01518", "K00129", "EC:2.7.1.147"]
+    organisms = {
+        "Organism 1": ["R01518", "K15778", "K22473"],
+        "Organism 2": ["K02446", "R00959", "C01172"],
+        "Organism 3": ["R01518", "K00129", "EC:2.7.1.147"]
     },
     colors = ['yellow', 'red']
 )
 ```
 
-![Custom-KEGG schema](./resources/strains.png)
+![Custom-KEGG schema](./resources/organisms.png)
+
+color **groups of organisms** with gradient:
+
+```javascript
+highlightGroupsOfOrganisms(
+    svg = document.getElementById('some-svg'),
+    groupsOfOrganisms = {
+        Grp1: {
+            "Organism 1": ["R01518", "K15778", "K22473"],
+            "Organism 2": ["K02446", "R00959", "C01172"],
+            "Organism 3": ["R01518", "K00129", "EC:2.7.1.147"]
+        },
+        Grp2: {
+            "Organism 4": ["R01518", "K15778", "K22473"],
+            "Organism 5": ["K02446", "R00959", "C01172"]
+        },
+    }
+)
+```
+
+The enzyme boxes will be separated into as many areas as there are groups. Group 1 organisms color the leftmost area, group 2 the second from the
+left, etc.
+
+![Custom-KEGG schema](./resources/multigroup.png)
 
 save map as PNG
 

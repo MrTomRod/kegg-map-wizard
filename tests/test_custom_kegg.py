@@ -4,6 +4,10 @@ from kegg_map_wizard.KeggShape import Poly, Circle, Rect, Line
 import os
 import shutil
 
+from random import randint
+
+get_random_color = lambda: f'#{randint(0, 255):02X}{randint(0, 255):02X}{randint(0, 255):02X}'
+
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(__file__))
 
 type_to_color = {
@@ -21,7 +25,7 @@ def mk_or_empty_dir(dir: str):
     return dir
 
 
-def run_wizard(org, color_function=None, dirname: str = None):
+def run_wizard(org, color_function=None, dirname: str = None, with_bboxes: bool = False):
     if not dirname:
         assert type(org) is str
         dirname = org
@@ -38,11 +42,33 @@ def run_wizard(org, color_function=None, dirname: str = None):
 
     for map in kmw.maps():
         print(map)
-        map.save(out_path=f'{out_path}/{kmw.org}{map.map_id}.svg')
+        map.save(out_path=f'{out_path}/{kmw.org}{map.map_id}.svg', with_bboxes=with_bboxes)
 
 
 def color_function_test(shape: KeggShape):
     return type_to_color[type(shape)]
+
+
+def color_function_multigroups(shape: KeggShape):
+    n_colors = randint(2, 5)
+    random_colors = [get_random_color() for i in range(n_colors)]
+    stops = ''
+    for i in range(n_colors - 1):
+        offset = ((i + 1) / n_colors) * 100
+        color_before = random_colors[i]
+        color_after = random_colors[i + 1]
+        print(offset, color_before, color_after)
+        stops += f'<stop offset="{offset}%" stop-color="{color_before}"></stop>'
+        stops += f'<stop offset="{offset}%" stop-color="{color_after}"></stop>'
+
+    shape.definition = f'''
+        <linearGradient
+            id="{shape.hash}"
+            gradientUnits="userSpaceOnUse"
+            x1="{shape.bbox.x1}" x2="{shape.bbox.x2}">
+            {stops}
+        </linearGradient>'''
+    return f'url(#{shape.hash})'
 
 
 class TestKeggMapWizard(TestCase):
@@ -115,16 +141,16 @@ class TestKeggMapWizard(TestCase):
         map_ids = ['00400', '00601', '01110', '01240', '04723', '04930']
 
         kmw = KeggMapWizard(org='ko')
-        kmw.set_color_function(color_function_test)
+        kmw.set_color_function(color_function_multigroups)
         for map_id in map_ids:
             map = kmw.get_map(map_id)
-            map.save(out_path=f'{out_path}/{kmw.org}{map_id}.svg')
+            map.save(out_path=f'{out_path}/{kmw.org}{map_id}.svg', with_bboxes=True)
 
     def test_render_all_maps_ko_transparent(self):
         run_wizard(org='eco', dirname='ko-transparent')
 
     def test_render_all_maps_ko(self):
-        run_wizard(org='ko', color_function=color_function_test)
+        run_wizard(org='ko', color_function=color_function_test, with_bboxes=True)
 
     def test_render_all_maps_rn(self):
         run_wizard(org='rn', color_function=color_function_test)
@@ -143,3 +169,14 @@ class TestKeggMapWizard(TestCase):
 
     def test_merge_organisms_transparent(self):
         run_wizard(dirname='merge-transparent', org=['ko', 'rn', 'ec'])
+
+    def test_map_to_annos(self):
+        kmw = KeggMapWizard.merge_organisms(organisms=['ko', 'rn', 'ec'])
+        # maps = [kmw.get_map(map_id=map_id) for map_id in ['00400', '00790', '00380']]
+        maps = kmw.maps()
+        print(len(maps))
+        # [a.name for map in maps for shape in map.shapes() for a in shape.annotations()]
+        res = {map.map_id: [a.name for shape in map.shapes() for a in shape.annotations()] for map in maps}
+        import json
+        with open('/home/thomas/Downloads/map_to_annos.json', 'w') as f:
+            json.dump(res, f, indent=4)

@@ -18,9 +18,8 @@ class KeggAnnotation:
         self.description = description
 
     def __repr__(self):
-        return F'<KeggAnnotation ({self.anno_type}): {self.name}>'
+        return f'{self.anno_type}: {self.name}>'
 
-    @property
     def as_dict(self) -> dict:
         return dict(
             type=self.anno_type,

@@ -2,17 +2,50 @@ import os
 import re
 import json
 import logging
+from math import ceil, floor
 
-from kegg_map_wizard.kegg_utils import Template, LINE_TEMPLATE, RECT_TEMPLATE, POLY_TEMPLATE, CIRCLE_TEMPLATE
+from kegg_map_wizard.kegg_utils import Template, LINE_TEMPLATE, RECT_TEMPLATE, POLY_TEMPLATE, CIRCLE_TEMPLATE, round_up, round_down
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
 
 ROOT = os.path.dirname(__file__)
+
+
+class BBox:
+    def __init__(self, x: float, y: float, width: float, height: float):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    @property
+    def x1(self) -> float:
+        return round_down(self.x)
+
+    @property
+    def x2(self) -> float:
+        return round_up(self.x + self.width)
+
+    @property
+    def y1(self) -> float:
+        return round_down(self.y)
+
+    @property
+    def y2(self) -> float:
+        return round_up(self.y + self.height)
+
+    def serialized(self) -> str:
+        return json.dumps({'x1': self.x1, 'x2': self.x2, 'y1': self.y1, 'y2': self.y2})
+
+    def __str__(self) -> str:
+        return self.serialized()
 
 
 class KeggShape:
     type: str
     re_geometry: re.Pattern
     template: Template  # jinja2.Template
+    bbox: BBox = None
+    definition_html: str = None
 
     def __init__(self, kegg_map, type, geometry, url, description, raw_position):
         self.kegg_map = kegg_map
@@ -20,6 +53,7 @@ class KeggShape:
         self.url = url
         self.description = description
         self.raw_position = raw_position
+        self.hash = str(hash(raw_position))
 
         assert self.re_geometry.match(geometry) is not None, \
             f'Error in {self}: geometry {repr(geometry)} does not match regex!'
@@ -32,29 +66,24 @@ class KeggShape:
 
         self.annotations_dict = KeggAnnotation.generate(self.kegg_map.kegg_map_wizard, url)
 
-    def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.description}>'
+    def __str__(self):
+        return self.description
 
     def annotations(self) -> list:
         return list(self.annotations_dict.values())
 
-    @property
     def color(self) -> str:
         return self.kegg_map.kegg_map_wizard.color_function(shape=self)
 
-    @property
     def classes(self):
         classes = set(anno.html_class for anno in self.annotations())
         if len(classes) > 1:
             print('Weird. A shape should have only one class.', self, classes)
         return classes
 
-    @property
     def annotations_serialized(self) -> str:
-        return json.dumps([anno.as_dict for anno in self.annotations()])
-        # .replace('-', '').replace("'", '').replace('-', '').replace('<', '').replace('>', '')
+        return json.dumps([anno.as_dict() for anno in self.annotations()])
 
-    @property
     def svg(self):
         try:
             return self.template.render(shape=self)
@@ -101,12 +130,8 @@ class Poly(KeggShape):
     re_geometry = re.compile(r'^([(,][0-9]+)+\)$')  # (341,292,332,295,332,288), (670,909,661,912,664,909,661,905)
     template = POLY_TEMPLATE
 
-    # x1,y1,x2,y2,..,xn,yn 	Specifies the coordinates of the edges of the polygon.
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def calc_geometry(self, geometry: str) -> str:
+        # x1,y1,x2,y2,..,xn,yn 	Specifies the coordinates of the edges of the polygon.
         coords = geometry[1:-1].split(',')
         for c in coords:
             assert c.isdigit(), f'Error in {self}: geometry contains non-integer! {geometry}'
@@ -119,9 +144,6 @@ class Circle(KeggShape):
     re_geometry = re.compile(r'^\([0-9]+,[0-9]+\) [0-9]+$')  # (246,236) 4
     template = CIRCLE_TEMPLATE
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def calc_geometry(self, geometry: str) -> str:
         cx, cy, r = [int(i) for i in geometry[1:].replace(') ', ',').split(',')]
         return f'cx="{cx}" cy="{cy}" r="{r}"'
@@ -131,9 +153,6 @@ class Rect(KeggShape):
     type = 'rect'
     re_geometry = re.compile(r'^\([0-9]+,[0-9]+\) \([0-9]+,[0-9]+\)$')  # (259,192) (305,209)
     template = RECT_TEMPLATE
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     def calc_geometry(self, geometry: str) -> str:  # '(620,271) (666,288)' -> []
         coords = geometry[1:-1].replace(') (', ',')
@@ -155,9 +174,6 @@ class Line(Rect):
     type = 'line'
     re_geometry = re.compile(r'^\([0-9]+(,[0-9]+)+\) [0-9]+$')  # '(138,907,158,907) 2' or longer: '(723,2164,775,2164,775,2164) 3'
     template = LINE_TEMPLATE
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     def calc_geometry(self, geometry: str) -> str:  # '(138,907,158,907) 2' -> 'M 138.0,907.0 L 158.0,907.0'
         geometry, radius = geometry.rsplit(' ', maxsplit=1)

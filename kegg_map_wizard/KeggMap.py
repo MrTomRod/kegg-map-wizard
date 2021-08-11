@@ -2,6 +2,7 @@ import logging
 from functools import cached_property
 from kegg_map_wizard.KeggShape import *
 from kegg_map_wizard.kegg_utils import encode_png, load_png, MAP_TEMPLATE
+from tempfile import NamedTemporaryFile
 
 ROOT = os.path.dirname(__file__)
 
@@ -25,12 +26,12 @@ class KeggMap:
         self._config_path = kegg_map_wizard.map_conf_path(map_id)
 
         for path in (self._png_path, self._config_path, encoded_png_path):
-            assert os.path.isfile(path), F'File does not exist: {path}'
+            assert os.path.isfile(path), f'File does not exist: {path}'
 
         self._png, self._width, self._height = None, None, None
 
     def __repr__(self):
-        return f'<KeggMap {self.kegg_map_wizard.org}{self.map_id}: {self.title}>'
+        return f'{self.kegg_map_wizard.org}{self.map_id}: {self.title}'
 
     def shapes(self) -> [KeggShape]:
         return self.shapes_dict().values()
@@ -108,15 +109,49 @@ class KeggMap:
         self._width = png_json['width']
         self._height = png_json['height']
 
-    def svg(self) -> str:
+    def svg(self, with_bboxes: bool) -> str:
+        if with_bboxes:
+            self.__load_bounding_boxes()
+        return self.__render_svg()
+
+    def __render_svg(self, bbox_mode: bool = False) -> str:
+        self._bbox_mode = bbox_mode
         try:
             return MAP_TEMPLATE.render(map=self)
         except Exception as e:
             e.args = tuple([f'Failed to render shape: {self}!\n{str(e)}'])
             raise e
+        finally:
+            self._bbox_mode = False
 
-    def save(self, out_path: str, svgz: bool = False):
-        svg = self.svg()
+    def __load_bounding_boxes(self) -> None:
+        """
+        Calculate bounding boxes of all shapes.
+
+        1) create a svg map in bbox_mode
+        2) use PySide6.QtSvg to calculate bounding boxes
+        3) add bounding boxes to shapes
+        """
+        from PySide6 import QtSvg
+
+        with NamedTemporaryFile(mode='w') as tmp_svg:
+            tmp_svg.write(self.__render_svg(bbox_mode=True))
+            tmp_svg.flush()
+            svg_renderer = QtSvg.QSvgRenderer()
+            svg_renderer.load(tmp_svg.name)
+            for shape in self.shapes():
+                qrectf = svg_renderer.boundsOnElement(shape.hash)
+                shape.bbox = BBox(
+                    x=qrectf.x(),
+                    y=qrectf.y(),
+                    width=qrectf.width(),
+                    height=qrectf.height()
+                )
+                if shape.bbox.width == shape.bbox.height == 0:
+                    logging.warning(f'Error in map={self.map_id} shape={shape.raw_position} {shape.description=}: Could not get valid bbox.')
+
+    def save(self, out_path: str, svgz: bool = False, with_bboxes: bool = False):
+        svg = self.svg(with_bboxes=with_bboxes)
         if svgz:
             import gzip
             with gzip.open(out_path, 'w', 9) as f:
@@ -129,8 +164,8 @@ class KeggMap:
         assert self is not other_map and self.map_id == other_map.map_id
         my_shapes = self.shapes_dict()
         for raw_position, other_shape in other_map.shapes_dict().items():
-            other_shape:KeggShape
+            other_shape: KeggShape
             if raw_position in my_shapes:
                 my_shapes[raw_position].merge(other_shape, expect_duplicates=True)
             else:
-                my_shapes[raw_position]=other_shape
+                my_shapes[raw_position] = other_shape

@@ -24,7 +24,7 @@ raw HTML:</h6><textarea style="width:100%; font-family: Monospace; font-size:10p
 `)
 
 
-    // COVERED STRAINS
+    // COVERED ORGANISMS
     if (organisms !== undefined) {
         mm.appendElement(`
 <h6 class="dropdown-header context-menu-header">

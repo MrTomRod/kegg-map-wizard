@@ -2,9 +2,13 @@
 
 function calcColorArray(nSteps, colors) {
     if (nSteps === 1) {
-        return [colors[0], colors[3]]
+        return [colors[0], colors[colors.length - 1]]
     } else {
-        return [colors[0]].concat(chroma.scale([colors[1], colors[2]]).mode('lch').colors(nSteps-1)).concat([colors[3]])
+        if (colors.length === 4) {
+            return [colors[0]].concat(chroma.scale([colors[1], colors[2]]).mode('lch').colors(nSteps - 1)).concat([colors[3]])
+        } else {
+            return [colors[0]].concat(chroma.scale([colors[1], colors[2]]).mode('lch').colors(nSteps))
+        }
     }
 }
 
@@ -264,12 +268,30 @@ function createGradient(groupColors, nGroups, targetElement) {
         gradient.appendChild(stop)
     }
 
+    gradient.setAttribute('gradientUnits', 'userSpaceOnUse')
+
     // set gradient direction
     // gradient.setAttribute('x2', '1') // ->  does not work for elements with width or height = 0, wtf?!
+
     const bbox = targetElement.getBBox()
-    gradient.setAttribute('gradientUnits', 'userSpaceOnUse')
-    gradient.setAttribute('x1', bbox['x'])
-    gradient.setAttribute('x2', bbox['x'] + bbox['width'])
+    // gradient.setAttribute('x1', bbox['x'])
+    // gradient.setAttribute('x2', bbox['x'] + bbox['width'])
+
+    const bboxPy = $(targetElement).data('bbox')
+
+    const x1_j = bbox['x']
+    const x1_p = bboxPy['x1']
+
+    const x2_j = bbox['x'] + bbox['width']
+    const x2_p = bboxPy['x2']
+
+    if (Math.abs(x1_j - x1_p) > 0.001 || Math.abs(x2_j - x2_p) > 0.001) {
+        console.log('mismatch', targetElement)
+        console.log('mismatch', x1_j, x1_p, '--', x2_j, x2_p)
+    }
+
+    gradient.setAttribute('x1', bboxPy['x1'])
+    gradient.setAttribute('x2', bboxPy['x2'])
 
     return gradient
 }

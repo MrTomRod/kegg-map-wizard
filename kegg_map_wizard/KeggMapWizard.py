@@ -18,9 +18,9 @@ class KeggMapWizard:
         self._n_parallel = n_parallel
 
         for dir in (
-                F'{DATA_DIR}/rest_data',
-                F'{DATA_DIR}/maps_png/',
-                F'{DATA_DIR}/maps_data/{org}'
+                f'{DATA_DIR}/rest_data',
+                f'{DATA_DIR}/maps_png/',
+                f'{DATA_DIR}/maps_data/{org}'
         ):
             os.makedirs(dir, exist_ok=True)
 
@@ -30,7 +30,7 @@ class KeggMapWizard:
         self._maps: dict[str, KeggMap] = {}
 
     def __str__(self):
-        return f'<KeggMapWizard: {self.org} ({len(self.map_ids)} maps)>'
+        return f'{self.org} ({len(self.map_ids)} maps)'
 
     def color_function(self, shape: KeggShape):
         return 'transparent'
@@ -55,7 +55,7 @@ class KeggMapWizard:
 
     @cached_property
     def map_ids(self) -> [str]:
-        dir = F'{DATA_DIR}/maps_data/{self.org}'
+        dir = f'{DATA_DIR}/maps_data/{self.org}'
         map_ids = [filename.rstrip('.conf') for filename in os.listdir(dir) if filename.endswith('.conf')]
         for map_id in map_ids:
             assert len(map_id) == 5 and map_id.isnumeric(), f'File in {dir} '
@@ -71,14 +71,14 @@ class KeggMapWizard:
                 False,  # raw
                 True  # create cdb
             )
-            # dict(url=F'http://rest.kegg.jp/list/{file}', save_path=F'{self.KEGG_REST_PATH}/{file}.tsv', raw=False)
+            # dict(url=f'http://rest.kegg.jp/list/{file}', save_path=F'{self.KEGG_REST_PATH}/{file}.tsv', raw=False)
             for file in files
         ]
 
         fetch_all(args_list=to_download, n_parallel=self._n_parallel, reload=reload)
 
         for args in to_download:
-            assert os.path.isfile(args[1]), F'failed to download {args}'
+            assert os.path.isfile(args[1]), f'failed to download {args}'
 
         self.files = {file: get_cdb(self.rest_data_path(file)) for file in files}
 
@@ -91,7 +91,7 @@ class KeggMapWizard:
 
     def download_maps(self, map_ids: [str], reload=False, nonexistent_file=True) -> None:
         self.__download_map_pngs(map_ids, reload=reload)
-        found_maps = [map.rstrip('.png') for map in os.listdir(F'{DATA_DIR}/maps_png') if map.endswith('.png')]
+        found_maps = [map.rstrip('.png') for map in os.listdir(f'{DATA_DIR}/maps_png') if map.endswith('.png')]
         self.__download_map_confs(found_maps, reload=reload, nonexistent_file=nonexistent_file)
 
     def __download_map_pngs(self, map_ids: [str], reload: bool = False) -> None:
@@ -110,7 +110,7 @@ class KeggMapWizard:
         fetch_all(args_list=to_download, n_parallel=self._n_parallel, reload=reload)
 
         for args in to_download:
-            assert os.path.isfile(args[1]), F'failed to download {args}'
+            assert os.path.isfile(args[1]), f'failed to download {args}'
 
     def __download_map_confs(self, map_ids: [str], reload: bool = False, nonexistent_file=True):
         to_download = []
@@ -125,14 +125,14 @@ class KeggMapWizard:
             )
 
         if nonexistent_file:
-            nonexistent_file = F'{DATA_DIR}/maps_data/{self.org}/non-existent.json'
+            nonexistent_file = f'{DATA_DIR}/maps_data/{self.org}/non-existent.json'
 
         fetch_all(args_list=to_download, n_parallel=self._n_parallel, reload=reload,
                   nonexistent_file=nonexistent_file)
 
     @cached_property
     def map_id_to_description(self) -> dict:
-        with open(F'{DATA_DIR}/rest_data/path.tsv', 'r') as f:
+        with open(f'{DATA_DIR}/rest_data/path.tsv', 'r') as f:
             path_file = f.readlines()  # ['path:map00010\tGlycolysis / Gluconeogenesis', ...]
         map_id_to_description = {map_id.lstrip('path:map'): title.rstrip() for map_id, title in
                                  (line.split('\t', maxsplit=1) for line in path_file)}  #
@@ -153,14 +153,14 @@ class KeggMapWizard:
         if url:
             return f'http://rest.kegg.jp/get/{self.org}{map_id}/conf'
         else:
-            return F'{DATA_DIR}/maps_data/{self.org}/{map_id}.conf'
+            return f'{DATA_DIR}/maps_data/{self.org}/{map_id}.conf'
 
     @staticmethod
     def map_png_path(map_id: str, url=False) -> str:
         if url:
             return f'https://www.genome.jp/kegg/pathway/map/map{map_id}.png'
         else:
-            return F'{DATA_DIR}/maps_png/{map_id}.png'
+            return f'{DATA_DIR}/maps_png/{map_id}.png'
 
     def get_description(self, query: str, rest_file: str) -> str:
         """

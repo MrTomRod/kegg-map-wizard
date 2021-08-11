@@ -8,6 +8,7 @@ import multiprocessing
 import json
 import cdblib
 import base64
+from math import floor, ceil
 from io import BytesIO
 from PIL import Image  # pip install Pillow
 from jinja2 import Template
@@ -18,6 +19,14 @@ DATA_DIR = os.environ.get('KEGG_MAP_WIZARD_DATA')
 if DATA_DIR is None:
     logging.info(msg='Environment variable KEGG_MAP_WIZARD_DATA is not set.')
     DATA_DIR = f'{os.path.dirname(ROOT)}/data'
+
+
+def round_up(number: float, digits: int = 5) -> float:
+    return ceil((10 ** digits) * number) / (10 ** digits)
+
+
+def round_down(number: float, digits: int = 5) -> float:
+    return floor((10 ** digits) * number) / (10 ** digits)
 
 
 def encode_png(png_path: str) -> None:
@@ -69,61 +78,6 @@ def get_cdb(file: str):
     cdb_file = file + '.cdb'
     reader = cdblib.Reader.from_file_path(cdb_file)
     return reader
-
-
-# class KeyValueDb:
-#     def __init__(self, db_path, table_name='KeyValueDb'):
-#         self.db_path = db_path
-#         self.table_name = table_name
-#         self.connection = sqlite3.connect(self.db_path)
-#         self.cursor = self.connection.cursor()
-#         if not self.__table_exists():
-#             self.__create_table()
-#
-#     def __table_exists(self) -> bool:
-#         return bool(self.cursor.execute(
-#             '''SELECT count(name) FROM sqlite_master WHERE type='table' AND name=?''',
-#             (self.table_name,)
-#         ).fetchone()[0])
-#
-#     def __create_table(self):
-#         self.cursor.execute(
-#             f'''CREATE TABLE {self.table_name} (key TEXT primary key, value TEXT)'''
-#         )
-#
-#     def get(self, key: str) -> str:
-#         result = self.cursor.execute(f'''SELECT value FROM {self.table_name} WHERE key = ?''', (key,)).fetchone()
-#         if result is None:
-#             raise KeyError(f'path {key} not found in outline_db')
-#         else:
-#             return result[0]
-#
-#     def set(self, key: str, value: str):
-#         print(key[:10], "->", value[:10])
-#         self.cursor.execute(f"INSERT INTO {self.table_name} VALUES (?,?)", (key, value,))
-#         self.connection.commit()
-#
-#     def __getitem__(self, key: str) -> str:
-#         return self.get(key)
-#
-#     def __setitem__(self, key: str, value: str):
-#         self.set(key, value)
-#
-#     def __delitem__(self, key: str):
-#         self.cursor.execute(f'''DELETE FROM {self.table_name} WHERE key = ?''', (key,))
-#         self.connection.commit()
-#
-#     def __contains__(self, item: str):
-#         return bool(self.cursor.execute(f'''SELECT count(*) FROM {self.table_name} WHERE key = ?''', (item,)).fetchone()[0])
-#
-#     def __len__(self):
-#         return self.cursor.execute(f"SELECT count(*) FROM {self.table_name}").fetchone()[0]
-#
-#
-# outline_db = KeyValueDb(
-#     db_path=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/outline.db',
-#     table_name='Outlines'
-# )
 
 
 def fetch(
