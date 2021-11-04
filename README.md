@@ -13,9 +13,9 @@ I included a simple JavaScript library that enables coloring the maps. It requir
 
 ### Creating the SVGs
 
-Install the requirements. `pip install requirements.txt`
+Install the requirements. `pip install poetry && poetry install`
 
-In a Python 3 console, type:
+In a Python 3.9 console, type:
 
 ```python
 from kegg_map_wizard.KeggMapWizard import KeggMapWizard, KeggMap, KeggShape, KeggAnnotation

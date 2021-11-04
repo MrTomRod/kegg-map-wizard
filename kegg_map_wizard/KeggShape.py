@@ -1,8 +1,8 @@
 import os
 import re
 import json
-import logging
-from math import ceil, floor
+from abc import ABC, abstractmethod
+from typing import Callable
 
 from kegg_map_wizard.kegg_utils import Template, LINE_TEMPLATE, RECT_TEMPLATE, POLY_TEMPLATE, CIRCLE_TEMPLATE, round_up, round_down
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
@@ -12,26 +12,22 @@ ROOT = os.path.dirname(__file__)
 
 class BBox:
     def __init__(self, x: float, y: float, width: float, height: float):
+        # Some Lines have width=0 -> gradients don't work!
+        if width < 2:  # make sure the BBox has at least width=2
+            x = x - 1  # shift left by one pixel
+            width = width + 2
+        if height < 2:  # may be necessary for vertical gradients
+            y = y - 1
+            height = height + 2
+
         self.x = x
         self.y = y
         self.width = width
         self.height = height
-
-    @property
-    def x1(self) -> float:
-        return round_down(self.x)
-
-    @property
-    def x2(self) -> float:
-        return round_up(self.x + self.width)
-
-    @property
-    def y1(self) -> float:
-        return round_down(self.y)
-
-    @property
-    def y2(self) -> float:
-        return round_up(self.y + self.height)
+        self.x1 = round_down(x)
+        self.x2 = round_up(x + width)
+        self.y1 = round_down(y)
+        self.y2 = round_up(y + height)
 
     def serialized(self) -> str:
         return json.dumps({'x1': self.x1, 'x2': self.x2, 'y1': self.y1, 'y2': self.y2})
@@ -40,19 +36,18 @@ class BBox:
         return self.serialized()
 
 
-class KeggShape:
+class KeggShape(ABC):
     type: str
     re_geometry: re.Pattern
     template: Template  # jinja2.Template
     bbox: BBox = None
     definition_html: str = None
 
-    def __init__(self, kegg_map, type, geometry, url, description, raw_position):
-        self.kegg_map = kegg_map
+    def __init__(self, type, geometry, description, raw_position, annotations: [KeggAnnotation]):
         self.type = type  # 'rect', 'poly' or 'circle'
-        self.url = url
         self.description = description
         self.raw_position = raw_position
+        self.annotations = annotations
         self.hash = str(hash(raw_position))
 
         assert self.re_geometry.match(geometry) is not None, \
@@ -64,65 +59,54 @@ class KeggShape:
             e.args = tuple([f'Error occurred while parsing geometry: {repr(geometry)}\n{str(e)}'])
             raise e
 
-        self.annotations_dict = KeggAnnotation.generate(self.kegg_map.kegg_map_wizard, url)
-
     def __str__(self):
-        return self.description
+        return f'<KeggShape{type(self).__name__}: {self.description}>'
 
-    def annotations(self) -> list:
-        return list(self.annotations_dict.values())
-
-    def color(self) -> str:
-        return self.kegg_map.kegg_map_wizard.color_function(shape=self)
+    @abstractmethod
+    def calc_geometry(self, geometry: str):
+        raise NotImplementedError('This is an abstract class!')
 
     def classes(self):
-        classes = set(anno.html_class for anno in self.annotations())
+        classes = set(anno.html_class for anno in self.annotations.values())
         if len(classes) > 1:
             print('Weird. A shape should have only one class.', self, classes)
         return classes
 
     def annotations_serialized(self) -> str:
-        return json.dumps([anno.as_dict() for anno in self.annotations()])
+        return json.dumps([anno.as_dict() for anno in self.annotations.values()])
 
-    def svg(self):
+    def svg(self, color_function: Callable, load_bbox_mode: bool = False):
         try:
-            return self.template.render(shape=self)
+            svg = self.template.render(shape=self, color_function=color_function, load_bbox_mode=load_bbox_mode)
         except Exception as e:
             e.args = tuple([f'Failed to render shape: {self}!\n{str(e)}'])
             raise e
+        return svg
+
+    def merge(self, other_shape):
+        my_annos = self.annotations
+        for key, other_anno in other_shape.annotations.items():
+            if key not in my_annos:
+                self.annotations[key] = other_anno
 
     @staticmethod
-    def generate(kegg_map, line: str):  # -> KeggShape
+    def create_shape(raw_position: str, description: str, annotations: [KeggAnnotation]):
         try:
-            raw_position, url, description = [l for l in line.rstrip().split('\t')]
             shape_type, geometry = raw_position.split(' ', maxsplit=1)
-
             if shape_type in ['circle', 'filled_circ', 'circ']:
-                return Circle(kegg_map, shape_type, geometry, url, description, raw_position)
+                return Circle(shape_type, geometry, description, raw_position, annotations)
             elif shape_type == 'rect':
-                return Rect(kegg_map, shape_type, geometry, url, description, raw_position)
+                return Rect(shape_type, geometry, description, raw_position, annotations)
             elif shape_type == 'poly':
-                return Poly(kegg_map, shape_type, geometry, url, description, raw_position)
+                return Poly(shape_type, geometry, description, raw_position, annotations)
             elif shape_type == 'line':
-                return Line(kegg_map, shape_type, geometry, url, description, raw_position)
+                return Line(shape_type, geometry, description, raw_position, annotations)
             else:
                 raise AssertionError(f'Line does not match any type: {shape_type}')
 
         except Exception as e:
-            e.args = tuple([f'Exception occurred in this line: {repr(line)}!\n{str(e)}'])
+            e.args = tuple([f'Exception occurred here: {raw_position=} {description=} {len(annotations)=}!\n{str(e)}'])
             raise e
-
-    def calc_geometry(self, geometry: str):
-        raise NotImplementedError('This is an abstract class!')
-
-    def merge(self, other_shape, expect_duplicates=True):
-        my_annos = self.annotations_dict
-        for key, other_anno in other_shape.annotations_dict.items():
-            if key in my_annos:
-                if expect_duplicates:
-                    logging.info(f'Duplicate annotations: {other_anno} in {self.kegg_map} at {self.raw_position}')
-            else:
-                self.annotations_dict[key] = other_anno
 
 
 class Poly(KeggShape):

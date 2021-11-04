@@ -2,27 +2,27 @@
      xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <style>.shape { cursor: pointer }</style>
     <g name="shapes">
-        {% for shape in map.lines %}{{ shape.svg()|safe }}
+        {% for shape in map.lines() %}{{ shape.svg(color_function, load_bbox_mode)|safe }}
         {% endfor %}{# lines in background: they sometimes go through polys#}
-        {% for shape in map.polys %}{{ shape.svg()|safe }}
+        {% for shape in map.polys() %}{{ shape.svg(color_function, load_bbox_mode)|safe }}
         {% endfor %}
-        {% for shape in map.rects %}{{ shape.svg()|safe }}
+        {% for shape in map.rects() %}{{ shape.svg(color_function, load_bbox_mode)|safe }}
         {% endfor %}
-        {% for shape in map.circles %}{{ shape.svg()|safe }}
+        {% for shape in map.circles() %}{{ shape.svg(color_function, load_bbox_mode)|safe }}
         {% endfor %}{# smallest object always in foreground #}
-    </g>{% if not map._bbox_mode %}
+    </g>{% if not load_bbox_mode %}
     <defs>
-        <pattern id="kegg-{{ map.kegg_map_wizard.org }}-{{ map.map_id }}-png"
+        <pattern id="{{ map.id }}"
                  width="{{ map.width }}" height="{{ map.height }}" patternUnits="userSpaceOnUse"
                  style="pointer-events: none">
             <image x="0" y="0" width="{{ map.width }}" height="{{ map.height }}" style="pointer-events: none"
-                   xlink:href="data:image/png;base64,{{ map.png }}"/>
+                   xlink:href="data:image/png;base64,{{ map.encoded_png }}"/>
         </pattern>
     </defs>
-    <rect fill="url(#kegg-{{ map.kegg_map_wizard.org }}-{{ map.map_id }}-png)"
+    <rect fill="url(#{{ map.id }})"
           width="{{ map.width }}" height="{{ map.height }}"
           style="pointer-events: none"/>
-    <defs id="shape-color-defs">{% for shape in map.shapes() %}{% if shape.definition %}
+    <defs id="shape-color-defs">{% for shape in map.shapes.values() %}{% if shape.definition %}
         {{ shape.definition }}
     {% endif %}{% endfor %}</defs>
 {% endif %}

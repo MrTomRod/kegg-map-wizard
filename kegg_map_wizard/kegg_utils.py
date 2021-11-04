@@ -1,24 +1,10 @@
 import os
 import re
-import logging
-import requests
-import time
-from random import randint
-import multiprocessing
 import json
-import cdblib
-import base64
 from math import floor, ceil
-from io import BytesIO
-from PIL import Image  # pip install Pillow
 from jinja2 import Template
 
 ROOT = os.path.dirname(__file__)
-
-DATA_DIR = os.environ.get('KEGG_MAP_WIZARD_DATA')
-if DATA_DIR is None:
-    logging.info(msg='Environment variable KEGG_MAP_WIZARD_DATA is not set.')
-    DATA_DIR = f'{os.path.dirname(ROOT)}/data'
 
 
 def round_up(number: float, digits: int = 5) -> float:
@@ -29,29 +15,10 @@ def round_down(number: float, digits: int = 5) -> float:
     return floor((10 ** digits) * number) / (10 ** digits)
 
 
-def encode_png(png_path: str) -> None:
-    img = Image.open(png_path)
-    img = img.convert('RGBA')
-
-    pixdata = img.load()
-
-    width, height = img.size
-
-    for y in range(height):
-        for x in range(width):
-            if pixdata[x, y] == (255, 255, 255, 255):
-                pixdata[x, y] = (255, 255, 255, 0)
-
-    buffer = BytesIO()
-    img.save(buffer, 'PNG')
-    img.close()
-
-    with open(png_path + '.json', 'w') as f:
-        json.dump(dict(
-            width=width,
-            height=height,
-            image=base64.b64encode(buffer.getvalue()).decode()), f
-        )
+def load_template(name: str) -> Template:
+    with open(f'{ROOT}/template/{name}.svg') as f:
+        template = f.read()
+        return Template(template)
 
 
 def load_png(png_path: str) -> json:
@@ -59,166 +26,11 @@ def load_png(png_path: str) -> json:
         return json.load(f)
 
 
-def split(line: str) -> (str, str):
-    if '\t' in line:
-        return line.split('\t', maxsplit=1)
-    else:
-        return line, ''
-
-
-def mk_cdb(file: str):
-    cdb_file = file + '.cdb'
-    with open(file) as in_f, open(cdb_file, 'wb') as out_f, cdblib.Writer(out_f) as writer:
-        for line in in_f.readlines():
-            k, v = split(line.strip())
-            writer.put(k.encode('utf-8'), v.encode('utf-8'))
-
-
-def get_cdb(file: str):
-    cdb_file = file + '.cdb'
-    reader = cdblib.Reader.from_file_path(cdb_file)
-    return reader
-
-
-def fetch(
-        session: requests.Session,
-        url: str,
-        save_path: str,
-        raw: bool = False,
-        make_cdb: bool = False,
-        convert_png: bool = False,
-        timeout: tuple = (2, 5),
-        verbose: bool = True
-) -> str:
-    """
-    Download a file and save it to disk.
-
-    :param session: requests.Session()
-    :param url: target url
-    :param save_path: target path
-    :param raw: if False: write in 'w'-mode, if True: write in 'wb'-mode,
-    :param sort: if True: sort file using C/Python logic after download
-    :param timeout: wait between timeout[0] and timeout[1] seconds before attempting download, to avoid overloading API
-    :param verbose: if True: print messages
-    :returns: status of the download: if 200: success, if 404 and empty: non-existent, 'error' otherwise
-    """
-    if timeout:
-        timeout = randint(*timeout)
-        if verbose: print(f'Downloading: {url} (after sleeping for {timeout} s)')
-        time.sleep(timeout)
-    else:
-        if verbose: print(f'Downloading: {url}')
-
-    with session.get(url) as response:
-        if raw:
-            data = response.content
-            mode = 'wb'
-        else:
-            data = response.text
-            mode = 'w'
-
-        if response.status_code != 200:
-            if data == '' and response.status_code == 404:
-                if verbose: print(f'Non-existent found! :: {url}')
-                return 'non-existent'
-            else:
-                if verbose: print(f'FAILURE ({response.status_code}) :: {url}\nDATA:\n\n{data}')
-                return 'error'
-
-        with open(save_path, mode) as out:
-            out.write(data)
-
-        if make_cdb:
-            mk_cdb(save_path)
-
-        if convert_png:
-            encode_png(save_path)
-
-        return 'success'
-
-
-def load_template(name: str) -> Template:
-    with open(f'{ROOT}/template/{name}.svg') as f:
-        template = f.read()
-        return Template(template)
-
-
 MAP_TEMPLATE = load_template('map')
 LINE_TEMPLATE = load_template('line')
 RECT_TEMPLATE = load_template('rect')
 POLY_TEMPLATE = load_template('poly')
 CIRCLE_TEMPLATE = load_template('circle')
-
-
-def fetch_all(
-        args_list: [tuple],
-        n_parallel: int,
-        reload: bool,
-        nonexistent_file: str = None,
-        verbose: bool = True
-) -> None:
-    """
-    Multiprocess the fetch function.
-
-    :param args_list: List of arguments for fetch function, excluding session: [(url, save_path, raw, sort), ...]
-    :param n_parallel: Number of parallel downloads
-    :param reload: if True: overwrite existing files, if False: only download non-existing files
-    :param nonexistent_file: path to json-file that conains list of non-existent files
-    :param verbose: if True: print summary
-    """
-    non_existent = []  # his list holds urls that did not lead to a real file
-
-    # load previous nonexistent file
-    if not reload and nonexistent_file and os.path.isfile(nonexistent_file):
-        with open(nonexistent_file) as f:
-            non_existent = json.load(f)
-
-    if not reload:
-        # download only files that do not exist yet and do not try to download previous non_existent again
-        args_list = [args for args in args_list if not os.path.isfile(args[1]) and args[0] not in non_existent]  # args[0] url, args[1]: save_path
-
-    if len(args_list) == 0:
-        # no files to download
-        return
-
-    with requests.Session() as session:
-        # download
-        statuses = process_all(
-            func=fetch,
-            args_list=[tuple([session, *args]) for args in args_list],  # add session to arguments
-            n_parallel=n_parallel
-        )
-
-    summary = {status: [] for status in set(statuses)}
-    for args, status in zip(args_list, statuses):
-        summary[status].append(args[0])  # args[0] url
-        if status == 'non-existent':
-            non_existent.append(args[0])  # args[0] url
-
-    if verbose:
-        print('Download status:', {status: len(urls) for status, urls in summary.items()})
-        if 'error' in summary and len(summary['error']) > 0:
-            print(f"\terror: {len(summary['error'])}")
-
-    if nonexistent_file:
-        with open(nonexistent_file, 'w') as f:
-            json.dump(non_existent, f)
-
-
-def process_all(func, args_list: [tuple], n_parallel: int) -> list:
-    """
-    Multiprocess a function. Returns list of return values.
-
-    :param func: function to multiprocess
-    :param args_list: list of arguments for the function
-    :param n_parallel: number of parallel tasks
-    :return: list of return values
-    """
-    with multiprocessing.Pool(processes=n_parallel) as pool:
-        result = pool.starmap(func=func, iterable=args_list)
-
-    return result
-
 
 ANNOTATION_SETTINGS = dict(
     K=dict(

@@ -268,30 +268,17 @@ function createGradient(groupColors, nGroups, targetElement) {
         gradient.appendChild(stop)
     }
 
-    gradient.setAttribute('gradientUnits', 'userSpaceOnUse')
-
-    // set gradient direction
-    // gradient.setAttribute('x2', '1') // ->  does not work for elements with width or height = 0, wtf?!
-
+    // get BBox, ensure width >= 2
     const bbox = targetElement.getBBox()
-    // gradient.setAttribute('x1', bbox['x'])
-    // gradient.setAttribute('x2', bbox['x'] + bbox['width'])
-
-    const bboxPy = $(targetElement).data('bbox')
-
-    const x1_j = bbox['x']
-    const x1_p = bboxPy['x1']
-
-    const x2_j = bbox['x'] + bbox['width']
-    const x2_p = bboxPy['x2']
-
-    if (Math.abs(x1_j - x1_p) > 0.001 || Math.abs(x2_j - x2_p) > 0.001) {
-        console.log('mismatch', targetElement)
-        console.log('mismatch', x1_j, x1_p, '--', x2_j, x2_p)
+    if (bbox['width'] < 2) {
+        bbox['width'] = bbox['width'] + 2
+        bbox['x'] = bbox['x'] - 1
     }
 
-    gradient.setAttribute('x1', bboxPy['x1'])
-    gradient.setAttribute('x2', bboxPy['x2'])
+    // set gradient
+    gradient.setAttribute('gradientUnits', 'userSpaceOnUse')
+    gradient.setAttribute('x1', bbox['x'])
+    gradient.setAttribute('x2', bbox['x'] + bbox['width'])
 
     return gradient
 }
@@ -405,29 +392,31 @@ function saveUriAs(uri, filename) {
 /**
  * Save a map as png, opens save-as dialog
  *
- * @param  {Object} element Div to save as png
+ * @param {Element} element Element to be saved
+ * @param {String} filename default: download.png
  */
-function savePng(element) {
+function savePng(element, filename = 'download.png') {
     $(window).scrollTop(0)  // otherwise, png will be cropped.
     html2canvas(element).then(function (canvas) {
-        saveUriAs(canvas.toDataURL(), 'pathway.png')
+        saveUriAs(canvas.toDataURL(), filename)
     })
 }
 
 /**
  * Save a map as svg, opens save-as dialog
  *
- * @param svg {Object} target svg element
+ * @param {Element} element SVG element to be saved
+ * @param {String} filename default: download.png
  */
-function saveSvg(svg) {
+function saveSvg(element, filename = 'download.svg') {
     //serialize svg.
     let serializer = new XMLSerializer()
-    let data = serializer.serializeToString(svg)
+    let data = serializer.serializeToString(element)
 
     data = encodeURIComponent(data)
 
     // add file type declaration
     data = 'data:image/svg+xml;charset=utf-8,' + data
 
-    saveUriAs(data, 'pathway.svg')
+    saveUriAs(data, filename)
 }

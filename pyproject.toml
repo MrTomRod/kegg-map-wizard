@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "kegg_map_wizard"
+version = "0.1.0"
+description = "This script downloads KEGG REST data, KEGG configs and KEGG PNGs and converts them into SVG maps which can be processed dynamically using modern browsers."
+authors = ["MrTomRod <roder.thomas@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.10"
+pure-cdb = "^3.1.1"
+beautifulsoup4 = "^4.10.0"
+Jinja2 = "^3.0.2"
+Pillow = "^8.4.0"
+requests = "^2.26.0"
+PySide6 = "^6.2.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
