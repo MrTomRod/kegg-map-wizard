@@ -13,12 +13,12 @@ ROOT = os.path.dirname(__file__)
 class BBox:
     def __init__(self, x: float, y: float, width: float, height: float):
         # Some Lines have width=0 -> gradients don't work!
-        if width < 2:  # make sure the BBox has at least width=2
-            x = x - 1  # shift left by one pixel
-            width = width + 2
-        if height < 2:  # may be necessary for vertical gradients
-            y = y - 1
-            height = height + 2
+        if width < 0.1:  # make sure the BBox has at least width=10
+            x = x - 5  # shift left by 5 pixel
+            width = width + 10
+        if height < 0.1:  # may be necessary for vertical gradients
+            y = y - 5
+            height = height + 10
 
         self.x = x
         self.y = y
