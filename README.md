@@ -15,27 +15,47 @@ I included a simple JavaScript library that enables coloring the maps. It requir
 
 Install the requirements. `pip install poetry && poetry install`
 
+Set the environment variable `KEGG_MAP_WIZARD_DATA` to where you want data to be downloaded to.
+
+```bash
+export KEGG_MAP_WIZARD_DATA='/path/to/desired/download/location'
+```
+
+or in Python:
+
+```python
+import os
+
+os.environ['KEGG_MAP_WIZARD_DATA'] = '/path/to/desired/download/location'
+```
+
 In a Python 3.9 console, type:
 
 ```python
-from kegg_map_wizard.KeggMapWizard import KeggMapWizard, KeggMap, KeggShape, KeggAnnotation
+from kegg_map_wizard import KeggMapWizard, KeggMap, KeggShape, KeggAnnotation, ColorMaker
 
-kmw = KeggMapWizard(org='ko')
-kmw.download_all_maps()  # this will download all available KEGG maps
-kmw.download_map(map_id='00400', reload=True)  # this will only download this specific KEGG map
+kmw = KeggMapWizard(orgs=['ko', 'rn', 'ec'])  # merge ko, rn and ec annotations
+kmw.download_maps()  # this will download all available KEGG maps
+kmw.download_maps(map_ids=['00400'], reload=True)  # this will only download this specific KEGG map
+
+# Create KeggMap object
+kegg_map = kmw.create_map('00400')
+
+# Create SVG
+svg = kegg_map.svg()
+
+# Save SVG
+with open('/path/to/outfile.svg', 'w') as f:
+    f.write(svg)
 ```
 
-To merge multiple annotation types:
-```python
-kmw = KeggMapWizard.merge_organisms(organisms=['ko', 'ec', 'rn'])
-```
-
-Colorize the SVGs (by default, all shapes are transparent):
+By default, all shapes are transparent. Below are some examples on how to apply colors:
 
 ```python
 def custom_color_function(shape: KeggShape):
     '''Color all shapes red'''
     return 'red'
+
 
 def custom_color_function(shape: KeggShape):
     '''Color only shapes with the annotation K01623 red'''
@@ -44,25 +64,33 @@ def custom_color_function(shape: KeggShape):
     else:
         return 'transparent'
 
+
 def custom_color_function(shape: KeggShape):
     '''Color all shapes with 4 sequential colors (yellow, red, blue, green)'''
-    shape.definition = f'''
-    <linearGradient id="{shape.hash}" gradientUnits="userSpaceOnUse"
-        x1="{shape.bbox.x1}" x2="{shape.bbox.x2}">
-            <stop offset="25.0%" stop-color="yellow"></stop>
-            <stop offset="25.0%" stop-color="red"></stop>
-            <stop offset="50.0%" stop-color="red"></stop>
-            <stop offset="50.0%" stop-color="blue"></stop>
-            <stop offset="75.0%" stop-color="blue"></stop>
-            <stop offset="75.0%" stop-color="green"></stop>
-    </linearGradient>
-    '''
+    shape.definition = ColorMaker.svg_gradient(
+        colors=['yellow', 'red', 'blue', 'green'],
+        id=shape.hash,
+        x1=shape.bbox.x1,
+        x2=shape.bbox.x2
+    )
     return f'url(#{shape.hash})'
 
-kmw.set_color_function(custom_color_function)
+
+# Create svg using the custom_color_function
+svg = kegg_map.svg(color_function=custom_color_function)
 ```
 
-The last color function results in this: ![multigroup colored](./resources/multigroup-example.png)
+The last `custom_color_function` results in this: ![multigroup colored](./resources/multigroup-example.png)
+
+The gradient is defined in `shape.definition` and looks like this:
+
+```text
+<linearGradient id="{shape.hash}" gradientUnits="userSpaceOnUse" x1="{shape.bbox.x1}" x2="{shape.bbox.x2}">
+    <stop offset="25%" stop-color="yellow"></stop><stop offset="25%" stop-color="red"></stop>
+    <stop offset="50%" stop-color="red"></stop><stop offset="50%" stop-color="blue"></stop>
+    <stop offset="75%" stop-color="blue"></stop><stop offset="75%" stop-color="green"></stop>
+</linearGradient>
+```
 
 ### Testing and colouring SVGs
 
@@ -74,7 +102,9 @@ Then open http://localhost:8000/kegg_map_wizard/html/map_tester.html
 
 Shapes can not just be colored via Python, but also via JavaScript in the web browser.
 
-For an example, see how this library is [used in OpenGenomeBrowser](https://opengenomebrowser.bioinformatics.unibe.ch/pathway/?map=kornec00030&g1=@tax:Lactobacillales&g2=@tax:Propionibacteriales).
+For an example, see how this library
+is [used in OpenGenomeBrowser](https://opengenomebrowser.bioinformatics.unibe.ch/pathway/?map=kornec00030&g1=@tax:Lactobacillales&g2=@tax:Propionibacteriales)
+.
 
 ### Required SVG format
 
@@ -113,6 +143,7 @@ Example:
   }
 ]
 ```
+
 ###### How access the properties using JavaScript/jQuery
 
 append a click event listener to all shapes:

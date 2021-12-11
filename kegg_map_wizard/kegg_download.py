@@ -8,13 +8,18 @@ import requests
 import time
 from random import randint
 import multiprocessing
+import logging
 
-ROOT = os.path.dirname(__file__)
-DATA_DIR = os.environ.get('KEGG_MAP_WIZARD_DATA', f'{os.path.dirname(ROOT)}/data')
 N_PARALLEL_DOWNLOADS = os.environ.get('KEGG_MAP_WIZARD_PARALLEL', '6')
 assert N_PARALLEL_DOWNLOADS.isdecimal(), f'The environment variable KEGG_MAP_WIZARD_PARALLEL must be decimal. ' \
                                          f'KEGG_MAP_WIZARD_PARALLEL={N_PARALLEL_DOWNLOADS}'
 N_PARALLEL_DOWNLOADS = int(N_PARALLEL_DOWNLOADS)
+
+assert 'KEGG_MAP_WIZARD_DATA' in os.environ, \
+    f'Please set the environment variable KEGG_MAP_WIZARD_DATA to the directory where KEGG data will be stored'
+DATA_DIR = os.environ['KEGG_MAP_WIZARD_DATA']
+assert os.path.isdir(DATA_DIR), f'Directory not found: KEGG_MAP_WIZARD_DATA={DATA_DIR}'
+logging.warning(f'Setup: KEGG_MAP_WIZARD_DATA={DATA_DIR}; KEGG_MAP_WIZARD_PARALLEL={N_PARALLEL_DOWNLOADS}')
 
 
 def split(line: str) -> (str, str):
@@ -85,6 +90,7 @@ def fetch(
     :param verbose: if True: print messages
     :returns: status of the download: if 200: success, if 404 and empty: non-existent, 'error' otherwise
     """
+    print(save_path)
     if timeout:
         timeout = randint(*timeout)
         if verbose: print(f'Downloading: {url} (after sleeping for {timeout} s)')

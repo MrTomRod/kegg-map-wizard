@@ -23,7 +23,7 @@
           width="{{ map.width }}" height="{{ map.height }}"
           style="pointer-events: none"/>
     <defs id="shape-color-defs">{% for shape in map.shapes.values() %}{% if shape.definition %}
-        {{ shape.definition }}
-    {% endif %}{% endfor %}</defs>
+        {{ shape.definition }}{% endif %}{% endfor %}
+    </defs>
 {% endif %}
 </svg>

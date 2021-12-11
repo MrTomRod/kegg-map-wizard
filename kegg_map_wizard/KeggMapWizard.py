@@ -10,7 +10,7 @@ class KeggMapWizard:
         self.cdb_readers = download_rest_data(orgs=self.orgs, reload=reload_rest_data)
         self.all_mapids: {str: str} = self.__load_all_mapids()
 
-    def __str__(self):
+    def __repr__(self):
         return f'<KeggMapWizard: {self.org_string}>'
 
     @property
@@ -23,7 +23,7 @@ class KeggMapWizard:
         if reload:
             download_rest_data(orgs=self.orgs, reload=False)
         for org in self.orgs:
-            self.download_maps(org=org, map_ids=map_ids, reload=reload, nonexistent_file=True)
+            self._download_maps(org=org, map_ids=map_ids, reload=reload, nonexistent_file=True)
 
     def create_map(self, map_id: str) -> KeggMap:
         assert map_id in self.all_mapids, f'Map {map_id} does not exist for {self}'
@@ -53,11 +53,14 @@ class KeggMapWizard:
             assert len(map_id) == 5 and map_id.isnumeric(), f'Conf file does not start with map_id: {map_id=}'
         return map_ids
 
-    def download_all_maps(self, reload=False):
-        for org in self.orgs:
-            self.download_maps(map_ids=self.all_mapids.keys(), org=org, reload=reload)
+    def download_maps(self, map_ids: [str] = None, reload=False):
+        if map_ids is None:
+            map_ids = self.all_mapids.keys()
 
-    def download_maps(self, org: str, map_ids: [str], reload=False, nonexistent_file=True) -> None:
+        for org in self.orgs:
+            self._download_maps(map_ids=map_ids, org=org, reload=reload)
+
+    def _download_maps(self, org: str, map_ids: [str], reload=False, nonexistent_file=True) -> None:
         os.makedirs(f'{DATA_DIR}/maps_data/{org}', exist_ok=True)
         download_map_pngs(map_ids, reload=reload)
         found_maps = set(map.removesuffix('.png') for map in os.listdir(f'{DATA_DIR}/maps_png') if map.endswith('.png'))

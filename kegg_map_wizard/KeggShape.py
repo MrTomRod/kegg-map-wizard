@@ -7,8 +7,6 @@ from typing import Callable
 from kegg_map_wizard.kegg_utils import Template, LINE_TEMPLATE, RECT_TEMPLATE, POLY_TEMPLATE, CIRCLE_TEMPLATE, round_up, round_down
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
 
-ROOT = os.path.dirname(__file__)
-
 
 class BBox:
     def __init__(self, x: float, y: float, width: float, height: float):
@@ -32,7 +30,7 @@ class BBox:
     def serialized(self) -> str:
         return json.dumps({'x1': self.x1, 'x2': self.x2, 'y1': self.y1, 'y2': self.y2})
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return self.serialized()
 
 
@@ -59,7 +57,7 @@ class KeggShape(ABC):
             e.args = tuple([f'Error occurred while parsing geometry: {repr(geometry)}\n{str(e)}'])
             raise e
 
-    def __str__(self):
+    def __repr__(self):
         return f'<KeggShape{type(self).__name__}: {self.description}>'
 
     @abstractmethod

@@ -28,7 +28,7 @@ class KeggMap:
 
         self.encoded_png, self.width, self.height = self._load_png()
 
-    def __str__(self):
+    def __repr__(self):
         return f'<KeggMap: {self.org_string}{self.map_id} - {self.title}>'
 
     @property
@@ -64,41 +64,6 @@ class KeggMap:
         import gzip
         with gzip.open(out_path, 'w', 9) as f:
             f.write(svg.encode('utf-8'))
-
-    def _load_png(self):
-        """
-        Convert white to transparent, return base64-encoded image, width and height.
-        """
-        if not os.path.isfile(self.png_path):
-            encode_png(self.png_path)
-        png_json = load_png(self.png_path)
-        return png_json['image'], png_json['width'], png_json['height']
-
-    def _load_bounding_boxes(self) -> None:
-        """
-        Calculate bounding boxes of all shapes.
-
-        1) create a svg map in calculate_bboxes
-        2) use PySide6.QtSvg to calculate bounding boxes
-        3) add bounding boxes to shapes
-        """
-        from PySide6 import QtSvg
-
-        with NamedTemporaryFile(mode='w') as tmp_svg:
-            tmp_svg.write(MAP_TEMPLATE.render(map=self, color_function=default_color_function, load_bbox_mode=True))
-            tmp_svg.flush()
-            svg_renderer = QtSvg.QSvgRenderer()
-            svg_renderer.load(tmp_svg.name)
-            for raw_position, shape in self.shapes.items():
-                qrectf = svg_renderer.boundsOnElement(shape.hash)
-                shape.bbox = BBox(
-                    x=qrectf.x(),
-                    y=qrectf.y(),
-                    width=qrectf.width(),
-                    height=qrectf.height()
-                )
-                if shape.bbox.width == shape.bbox.height == 0:
-                    logging.warning(f'Error in map={self.map_id} shape={shape.raw_position} {shape.description=}: Could not get valid bbox.')
 
     def add_shapes(self, cdb_readers, map_id: str, org: str) -> None:
         config_path = map_conf_path(org, map_id)
@@ -140,3 +105,38 @@ class KeggMap:
 
     def polys(self) -> [Poly]:
         return [s for s in self.shapes.values() if type(s) is Poly]
+
+    def _load_png(self):
+        """
+        Convert white to transparent, return base64-encoded image, width and height.
+        """
+        if not os.path.isfile(self.png_path):
+            encode_png(self.png_path)
+        png_json = load_png(self.png_path)
+        return png_json['image'], png_json['width'], png_json['height']
+
+    def _load_bounding_boxes(self) -> None:
+        """
+        Calculate bounding boxes of all shapes.
+
+        1) create a svg map in calculate_bboxes
+        2) use PySide6.QtSvg to calculate bounding boxes
+        3) add bounding boxes to shapes
+        """
+        from PySide6 import QtSvg
+
+        with NamedTemporaryFile(mode='w') as tmp_svg:
+            tmp_svg.write(MAP_TEMPLATE.render(map=self, color_function=default_color_function, load_bbox_mode=True))
+            tmp_svg.flush()
+            svg_renderer = QtSvg.QSvgRenderer()
+            svg_renderer.load(tmp_svg.name)
+            for raw_position, shape in self.shapes.items():
+                qrectf = svg_renderer.boundsOnElement(shape.hash)
+                shape.bbox = BBox(
+                    x=qrectf.x(),
+                    y=qrectf.y(),
+                    width=qrectf.width(),
+                    height=qrectf.height()
+                )
+                if shape.bbox.width == shape.bbox.height == 0:
+                    logging.warning(f'Error in map={self.map_id} shape={shape.raw_position} {shape.description=}: Could not get valid bbox.')

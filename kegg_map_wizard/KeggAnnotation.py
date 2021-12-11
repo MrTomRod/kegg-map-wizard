@@ -19,7 +19,7 @@ class KeggAnnotation:
         self.html_class = html_class
         self.description = description
 
-    def __str__(self):
+    def __repr__(self):
         return f'<KeggAnnotation: {self.anno_type} - {self.name}>'
 
     def as_dict(self) -> dict:

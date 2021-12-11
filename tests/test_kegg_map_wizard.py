@@ -2,6 +2,7 @@ from typing import Callable
 from unittest import TestCase
 from kegg_map_wizard.KeggMapWizard import KeggMapWizard, KeggMap
 from kegg_map_wizard.KeggShape import KeggShape
+from kegg_map_wizard.ColorMaker import ColorMaker
 from kegg_map_wizard.KeggAnnotation import KeggAnnotation
 from kegg_map_wizard.KeggShape import KeggShape, Poly, Circle, Rect, Line
 import os
@@ -9,8 +10,6 @@ import re
 import shutil
 
 from random import randint
-
-get_random_color = lambda: f'#{randint(0, 255):02X}{randint(0, 255):02X}{randint(0, 255):02X}'
 
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(__file__))
 
@@ -27,23 +26,13 @@ def color_function_test(shape: KeggShape):
 
 
 def color_function_multigroups(shape: KeggShape):
-    n_colors = randint(2, 5)
-    random_colors = [get_random_color() for i in range(n_colors)]
-    stops = ''
-    for i in range(n_colors - 1):
-        offset = ((i + 1) / n_colors) * 100
-        color_before = random_colors[i]
-        color_after = random_colors[i + 1]
-        stops += f'<stop offset="{offset}%" stop-color="{color_before}"></stop>'
-        stops += f'<stop offset="{offset}%" stop-color="{color_after}"></stop>'
-
-    shape.definition = f'''
-        <linearGradient
-            id="{shape.hash}"
-            gradientUnits="userSpaceOnUse"
-            x1="{shape.bbox.x1}" x2="{shape.bbox.x2}">
-            {stops}
-        </linearGradient>'''
+    colors = [ColorMaker.random_color() for i in range(randint(2, 5))]
+    shape.definition = ColorMaker.svg_gradient(
+        colors=colors,
+        id=shape.hash,
+        x1=shape.bbox.x1,
+        x2=shape.bbox.x2
+    )
     return f'url(#{shape.hash})'
 
 
@@ -57,7 +46,7 @@ def mk_or_empty_dir(dir: str):
 class TestKeggMapWizard(TestCase):
     def test_download_org(self):
         kmw = KeggMapWizard(orgs=['eco'])
-        kmw.download_all_maps()
+        kmw.download_maps()
 
     def test_single_map(self):
         kmw = KeggMapWizard(orgs=['ko'])
