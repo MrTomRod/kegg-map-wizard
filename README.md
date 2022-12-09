@@ -1,5 +1,8 @@
 # KeggMapWizard
 
+> **Warning**
+> Using this tool may require a [KEGG subscription](https://www.kegg.jp/kegg/legal.html)!
+
 This script downloads KEGG REST data, KEGG configs and KEGG PNGs and converts them into SVG maps which can be processed dynamically using modern
 browsers.
 
