@@ -30,7 +30,8 @@ class KeggAnnotation:
         )
 
     @classmethod
-    def create_annos(cls, cdb_readers, url: str, re_org_anno: Pattern, org: str):  # -> {tuple[str, str]: KeggAnnotation}
+    def create_annos(cls, cdb_readers, url: str, re_org_anno: Pattern,
+                     org: str):  # -> {tuple[str, str]: KeggAnnotation}
 
         url_prefix, annotations_hyperlink = url.split('?', maxsplit=1)
 
@@ -71,7 +72,7 @@ class KeggAnnotation:
         # handle organism annotations
         if re_org_anno.match(anno_query):
             return cls(name=anno_query, anno_type=org, html_class='enzyme',
-                                  description=get_description(cdb_readers[org], query=anno_query))
+                       description=get_description(cdb_readers[org], query=anno_query))
 
         # handle most common cases
         for anno_type, settings in ANNOTATION_SETTINGS.items():
@@ -79,6 +80,8 @@ class KeggAnnotation:
                 if anno_type == 'MAP':
                     anno_query = anno_query[-5:]
                 query = f'{settings["descr_prefix"]}{anno_query}'
+                descr = get_description(cdb_readers[settings['rest_file']], query=query)
+                print(query, '\t\t', descr)
                 return cls(
                     name=anno_query,
                     anno_type=anno_type,

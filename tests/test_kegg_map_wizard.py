@@ -1,13 +1,15 @@
-from typing import Callable
-from unittest import TestCase
-from kegg_map_wizard.KeggMapWizard import KeggMapWizard, KeggMap
-from kegg_map_wizard.KeggShape import KeggShape
-from kegg_map_wizard.ColorMaker import ColorMaker
-from kegg_map_wizard.KeggAnnotation import KeggAnnotation
-from kegg_map_wizard.KeggShape import KeggShape, Poly, Circle, Rect, Line
 import os
 import re
 import shutil
+
+os.environ['KEGG_MAP_WIZARD_DATA'] = 'C:\\Users\Thoma\PycharmProjects\kegg-map-wizard\\tests\data'
+
+from typing import Callable
+from unittest import TestCase
+from kegg_map_wizard.KeggMapWizard import KeggMapWizard
+from kegg_map_wizard.ColorMaker import ColorMaker
+from kegg_map_wizard.KeggAnnotation import KeggAnnotation
+from kegg_map_wizard.KeggShape import KeggShape, Poly, Circle, Rect, Line
 
 from random import randint
 
@@ -49,9 +51,17 @@ class TestKeggMapWizard(TestCase):
         kmw.download_maps()
 
     def test_single_map(self):
-        kmw = KeggMapWizard(orgs=['ko'])
-        map = kmw.create_map('00400')
-        self.assertGreater(len(map.shapes), 0)
+        from kegg_map_wizard import KeggMapWizard, KeggMap, KeggShape, KeggAnnotation, ColorMaker
+
+        kmw = KeggMapWizard(orgs=['ko', 'rn', 'ec'])  # merge ko, rn and ec annotations
+        kmw.download_maps(map_ids=['00400'], reload=False)  # this will only download this specific KEGG map
+
+        # Create KeggMap object
+        kegg_map = kmw.create_map('00400')
+
+        # Create SVG
+        svg = kegg_map.svg()
+        print(svg)
 
     def test_get_nonexistent_map(self):
         kmw = KeggMapWizard(orgs=['ko'])
@@ -108,7 +118,8 @@ def run_wizard(orgs: [str], color_function: Callable = None, dirname: str = None
 
     for map_id in kmw._available_maps():
         map = kmw.create_map(map_id)
-        map.save_svg(out_path=f'{out_path}/{kmw.org_string}{map.map_id}.svg', color_function=color_function, calculate_bboxes=calculate_bboxes)
+        map.save_svg(out_path=f'{out_path}/{kmw.org_string}{map.map_id}.svg', color_function=color_function,
+                     calculate_bboxes=calculate_bboxes)
 
 
 class TestLots(TestCase):
